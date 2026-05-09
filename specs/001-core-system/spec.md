@@ -7,6 +7,13 @@
 
 ---
 
+## Clarifications
+
+### Session 2026-05-09
+- Q: Since the application controls physical hardware and lives on the local network, should the web interface implement any form of authentication? → A: None (Trust the local network - default for v1).
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Configure and Execute a Timelapse (Priority: P1)
@@ -151,6 +158,7 @@ A developer working on the system wants to run the full application stack — ho
 
 **Web UI**
 - **FR-029**: Web UI MUST communicate with the host application exclusively via its public API; no direct hardware access from the UI layer.
+- **FR-049**: System MUST trust the local network for access; no user authentication or authorization is required in v1.
 - **FR-030**: Web UI MUST provide a live control view: organized camera settings, test capture, live-view, and manual tripod nudge.
 - **FR-031**: Web UI MUST provide a planner: configure and launch timelapse or video pan jobs.
 - **FR-032**: Web UI MUST provide a monitor: real-time job progress, hardware connection status, current position.
@@ -162,9 +170,10 @@ A developer working on the system wants to run the full application stack — ho
 
 **Fault Handling**
 - **FR-036**: System MUST monitor available disk space before each frame capture; if insufficient space remains for at least one additional frame, the sequence MUST halt with a disk-space warning and preserve all completed frames.
+- **FR-050**: System MUST automatically delete the oldest sessions (excluding the active one) when available disk space falls below a critical threshold to ensure operational continuity.
 - **FR-037**: If a firmware move command does not complete within the expected duration plus a configurable margin, the system MUST halt the sequence, mark calibration state as unknown, and report the fault.
 - **FR-038**: If the actual capture-settle-move cycle time exceeds the configured interval, the system MUST proceed to the next frame immediately and log a timing overrun warning; it MUST NOT skip frames or attempt to catch up.
-- **FR-039**: System MUST reject a second sequence launch while one is already running, with a clear error that does not affect the running sequence.
+- **FR-039**: System MUST reject a second sequence launch or video assembly request while one is already running, with a clear error that does not affect the running sequence.
 
 **Calibration**
 - **FR-040**: System MUST provide a "set current position as home" action that designates the tripod's current physical position as the (0°, 0°) coordinate origin.
@@ -225,3 +234,6 @@ A developer working on the system wants to run the full application stack — ho
 - Only one job (timelapse or video pan) may run at a time; concurrent jobs are out of scope.
 - Position state is maintained in software (step counting); hardware encoders are not assumed.
 - Disk space fault threshold defaults to 200 MB remaining; this value is configurable.
+o 200 MB remaining; this value is configurable.
+igurable.
+o 200 MB remaining; this value is configurable.
