@@ -13,7 +13,7 @@ def main(
 ):
     configure_logging(level=log_level.upper(), log_file=log_file)
 
-from .commands import serve, validate, snapshot, tripod, pan, mock_firmware, timelapse
+from .commands import serve, validate, snapshot, tripod, pan, mock_firmware, timelapse, camera
 app.command(name="serve")(serve.command)
 app.command(name="validate")(validate.command)
 app.command(name="snapshot")(snapshot.command)
@@ -21,6 +21,7 @@ app.command(name="tripod")(tripod.command)
 app.command(name="pan")(pan.command)
 app.command(name="mock-firmware")(mock_firmware.command)
 app.command(name="timelapse")(timelapse.command)
+app.command(name="camera")(camera.command)
 
 if __name__ == "__main__":
     app()
