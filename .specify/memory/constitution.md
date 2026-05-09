@@ -13,8 +13,8 @@ The system is built as a headless host application running on Linux (e.g. Raspbe
 The system is composed of three distinct, independently versioned components:
 
 1. **Firmware** — Runs on an ESP-class microcontroller; the current hardware uses an ESP8266, and the rewrite must remain compatible with ESP8266 while allowing ESP32 as a target. It controls stepper motors for pan and tilt and exposes a serial command protocol.
-2. **Host Application (Headless)** — Python 3.11+ process on a Linux host; controls the camera via gphoto2; orchestrates sequences (timelapse or video); manages sessions; exposes a clean API (REST/WebSocket); and provides a CLI for scriptable operation without the web UI.
-3. **Web UI (Client)** — Independent browser-based application (SPA) that communicates with the Host Application via its API for configuration, live manual control, planning, and monitoring.
+2. **Host Application (Headless)** — Python 3.12+ process on a Linux host; controls the camera via gphoto2; orchestrates sequences (timelapse or video); manages sessions; exposes a clean API (REST/WebSocket); and provides a CLI for scriptable operation without the web UI.
+3. **Web UI (Client)** — Independent browser-based application that communicates with the Host Application via its API for configuration, live manual control, planning, and monitoring.
 
 ## Core Principles
 
