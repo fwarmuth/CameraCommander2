@@ -20,6 +20,7 @@ from ...core.errors import (
     SerialLostError,
     TripodError,
 )
+from ...core.logging import logger
 from ...core.models import TripodState, TripodStatus
 from .base import MoveResult, StatusReport
 from .protocol import (
@@ -51,8 +52,10 @@ class SerialTripodAdapter:
         self._lock = asyncio.Lock()
 
     async def open(self) -> None:
+        logger.debug("opening tripod serial port: {}", self.config.serial.port)
         await asyncio.to_thread(self._open_blocking)
         version = await self.version()
+        logger.info("tripod firmware version: {}", version)
         major = int(version.split(".", 1)[0])
         if major != self.config.expected_protocol_major:
             self._protocol_compatible = False
@@ -64,9 +67,11 @@ class SerialTripodAdapter:
             )
         await self.set_microstep(self.config.microstep)
         await self.report()
+        logger.info("tripod connection established")
 
     async def close(self) -> None:
         if self._serial is not None:
+            logger.debug("closing tripod serial port")
             await asyncio.to_thread(self._serial.close)
             self._serial = None
 
@@ -75,7 +80,6 @@ class SerialTripodAdapter:
             if not self._protocol_compatible:
                 state = TripodState.error
             elif self._serial is not None and self._serial.is_open:
-                await self.report()
                 state = TripodState.connected
             else:
                 state = TripodState.disconnected
@@ -111,6 +115,7 @@ class SerialTripodAdapter:
         *,
         expected_duration_s: float | None = None,
     ) -> MoveResult:
+        logger.debug("moving tripod to: {}, {}", pan_deg, tilt_deg)
         started = time.monotonic()
         reply = await self._send(
             cmd_move(pan_deg, tilt_deg),
@@ -136,19 +141,23 @@ class SerialTripodAdapter:
         )
 
     async def home(self) -> None:
+        logger.debug("homing tripod")
         self._pan_deg = 0.0
         self._tilt_deg = 0.0
 
     async def set_drivers(self, enabled: bool) -> None:
+        logger.debug("setting tripod drivers: {}", enabled)
         await self._send(cmd_drivers(enabled), expected=OkReply)
         self._drivers_enabled = enabled
         self._pan_deg = 0.0
         self._tilt_deg = 0.0
 
     async def stop(self) -> None:
+        logger.debug("stopping tripod")
         await self._send(cmd_stop(), expected=OkReply)
 
     async def set_microstep(self, microstep: int) -> None:
+        logger.debug("setting tripod microstep: {}", microstep)
         await self._send(cmd_microstep(microstep), expected=OkReply)
 
     def _open_blocking(self) -> None:
@@ -193,6 +202,7 @@ class SerialTripodAdapter:
         if timeout_override is not None:
             ser.timeout = max(float(old_timeout or 0), timeout_override + 1.0)
         try:
+            logger.trace("serial tx: {!r}", command)
             ser.write(command.encode("ascii"))
             ser.flush()
             deadline = time.monotonic() + float(ser.timeout or 1.0) + 0.5
@@ -201,6 +211,7 @@ class SerialTripodAdapter:
                 if not raw:
                     continue
                 line = raw.decode("ascii", errors="replace").strip()
+                logger.trace("serial rx: {!r}", line)
                 try:
                     reply = parse_reply(line)
                 except ValueError:
