@@ -24,14 +24,16 @@ class Angles(BaseModel):
 class ConfigurationMetadata(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=120)]
     description: Annotated[str, Field(default="", max_length=2000)]
-    tags: Annotated[list[str], Field(default_factory=list, max_items=16)]
+    tags: Annotated[list[str], Field(default_factory=list, max_length=16)]
     created_at: datetime = Field(default_factory=datetime.now)
 
 
 class CameraConfig(BaseModel):
     model_substring: str = ""
     settings: dict[str, Any] = Field(default_factory=dict)
-    image_format: Literal["camera-default", "jpeg-only", "raw-only", "raw+jpeg"] = "camera-default"
+    image_format: Literal["camera-default", "jpeg-only", "raw-only", "raw+jpeg"] = (
+        "camera-default"
+    )
 
 
 class SerialConfig(BaseModel):
@@ -110,6 +112,18 @@ SequenceConfig = Annotated[
 ]
 
 
+class HostConfig(BaseModel):
+    """Host-level persistent configuration (usually ~/.cameracommander/host.yaml)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    camera: CameraConfig = Field(default_factory=CameraConfig)
+    tripod: TripodConfig | None = None
+    session_library_root: Path = Field(
+        default_factory=lambda: Path.home() / ".cameracommander" / "sessions"
+    )
+
+
 class Configuration(BaseModel):
     """Full, validated session configuration (FR-026)."""
 
@@ -121,6 +135,42 @@ class Configuration(BaseModel):
     safety: SafetyConfig
     output: OutputConfig
     sequence: SequenceConfig
+
+
+class SettingDescriptor(BaseModel):
+    """Metadata for a single camera setting widget."""
+
+    type: Literal[
+        "TEXT", "RANGE", "TOGGLE", "RADIO", "MENU", "DATE", "BUTTON", "UNKNOWN"
+    ]
+    current: str | float | bool | None
+    choices: list[str] | None = None
+    range: dict[str, float] | None = None
+
+
+def load_host_configuration(source: str | Path) -> HostConfig:
+    """Parse a YAML file or YAML string and return a validated ``HostConfig``.
+
+    Wraps Pydantic ``ValidationError`` in :class:`ConfigError` so callers across
+    the host can catch a single domain exception.
+    """
+
+    if isinstance(source, Path) or (
+        isinstance(source, str) and "\n" not in source and Path(source).exists()
+    ):
+        text = Path(source).read_text(encoding="utf-8")
+    else:
+        text = source
+    try:
+        raw = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"YAML parse error: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError("Configuration root must be a YAML mapping")
+    try:
+        return HostConfig.model_validate(raw)
+    except Exception as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def load_configuration(source: str | Path) -> Configuration:
@@ -151,27 +201,22 @@ def dump_configuration(config: Configuration) -> str:
     return yaml.dump(config.model_dump(), sort_keys=False, indent=2)
 
 
-    "SettingDescriptor",
 __all__ = [
     "Angles",
     "CameraConfig",
     "Configuration",
     "ConfigurationMetadata",
+    "HostConfig",
     "OutputConfig",
     "SafetyConfig",
     "SequenceConfig",
     "SerialConfig",
+    "SettingDescriptor",
     "TimelapseSequenceConfig",
     "TripodConfig",
     "VideoConfig",
     "VideoPanSequenceConfig",
     "dump_configuration",
     "load_configuration",
+    "load_host_configuration",
 ]
-
-class SettingDescriptor(BaseModel):
-    """Metadata for a single camera setting widget."""
-    type: Literal["TEXT", "RANGE", "TOGGLE", "RADIO", "MENU", "DATE", "BUTTON", "UNKNOWN"]
-    current: str | float | bool | None
-    choices: list[str] | None = None
-    range: dict[str, float] | None = None
