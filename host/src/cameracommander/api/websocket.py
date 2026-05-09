@@ -21,6 +21,7 @@ def _matches(pattern: str, topic: str) -> bool:
         return topic.startswith(pattern[:-1])
     return False
 
+
 @dataclass(slots=True, eq=False)
 class Subscriber:
     queue: asyncio.Queue[str] = field(default_factory=lambda: asyncio.Queue(maxsize=256))
@@ -58,7 +59,6 @@ class EventBus:
             yield await sub.queue.get()
 
     async def publish(self, topic: str, payload: Any) -> None:
-...
         """Broadcast a message to all matching subscribers."""
         frame = json.dumps({"topic": topic, "payload": payload})
         async with self._lock:
