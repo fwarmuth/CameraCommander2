@@ -29,7 +29,7 @@ def _matches(topic: str, pattern: str) -> bool:
     return False
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Subscriber:
     queue: asyncio.Queue[str] = field(default_factory=lambda: asyncio.Queue(maxsize=256))
     topics: set[str] = field(default_factory=set)
