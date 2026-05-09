@@ -150,19 +150,19 @@ description: "Task list for CameraCommander2 — Core System"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T058 [P] [US2] Contract test: `GET /api/camera/settings`, `PUT /api/camera/settings`, `POST /api/camera/capture`, `GET /api/camera/preview` against `MockCameraAdapter` round-trip the schemas in `host/tests/contract/test_camera_endpoints.py`
-- [ ] T059 [P] [US2] Contract test: `POST /api/tripod/move`, `POST /api/tripod/nudge`, `POST /api/tripod/stop`, `PUT /api/tripod/drivers` enforce 422 (tilt limit), 412 (calibration on `move`), 409 (job lock), and 200 happy paths in `host/tests/contract/test_tripod_endpoints.py`
+- [X] T058 [P] [US2] Contract test: `GET /api/camera/settings`, `PUT /api/camera/settings`, `POST /api/camera/capture`, `GET /api/camera/preview` against `MockCameraAdapter` round-trip the schemas in `host/tests/contract/test_camera_endpoints.py`
+- [X] T059 [P] [US2] Contract test: `POST /api/tripod/move`, `POST /api/tripod/nudge`, `POST /api/tripod/stop`, `PUT /api/tripod/drivers` enforce 422 (tilt limit), 412 (calibration on `move`), 409 (job lock), and 200 happy paths in `host/tests/contract/test_tripod_endpoints.py`
 
 ### Implementation for User Story 2
 
-- [ ] T060 [P] [US2] Implement `GET /api/camera/settings` and `PUT /api/camera/settings` (delegates to `CameraAdapter.query_settings`/`apply_settings`, maps validation errors to 400, disconnect to 503) in `host/src/cameracommander/api/routes/camera.py`
-- [ ] T061 [P] [US2] Implement `POST /api/camera/capture` and `GET /api/camera/captures/{capture_id}` (one-shot capture stored in a TTL-keyed in-memory cache + temp file; optional `save_to_session`) in `host/src/cameracommander/api/routes/camera.py`
-- [ ] T062 [P] [US2] Implement `GET /api/camera/preview` (single JPEG) and `GET /api/camera/preview/stream` (MJPEG `multipart/x-mixed-replace; boundary=frame`, 5 fps cap) in `host/src/cameracommander/api/routes/camera.py`
-- [ ] T063 [P] [US2] Implement `GET /api/tripod/status`, `POST /api/tripod/move`, `POST /api/tripod/nudge`, `POST /api/tripod/stop`, `PUT /api/tripod/drivers` — all guarded by `SafetyService` and the active-job lock; `move` requires `homed` calibration but `nudge` is allowed under `unknown` (with a logged warning per cli-commands.md) in `host/src/cameracommander/api/routes/tripod.py`
-- [ ] T064 [P] [US2] Implement `cameracommander snapshot` CLI (lazy gphoto2 import, `--model-substring`, `--no-autofocus`, exit codes 0/2/10/11) in `host/src/cameracommander/cli/commands/snapshot.py`
-- [ ] T065 [P] [US2] Implement `cameracommander tripod` REPL CLI (relative `<pan> <tilt>`, `to <pan> <tilt>`, `home`, `e`/`d`, `s`, `stop`, `q`) in `host/src/cameracommander/cli/commands/tripod.py`
-- [ ] T066 [US2] Implement LiveControl view: camera-settings panel (settings table from `/api/camera/settings`, edit + apply), MJPEG `<img src="/api/camera/preview/stream">`, **Test capture** button, **Nudge** controls (pan/tilt buttons with safety-aware enable state), connection-fault banner that disables capture when camera/tripod state is `error` or `disconnected`, in `web/src/views/LiveControl.svelte`
-- [ ] T067 [US2] Add periodic `tripod.position` event publication (≤1 Hz idle, ≤4 Hz during a job per host-events.asyncapi.yaml) in `host/src/cameracommander/services/tripod_polling.py` and wire into `AppContainer` lifespan
+- [X] T060 [P] [US2] Implement `GET /api/camera/settings` and `PUT /api/camera/settings` (delegates to `CameraAdapter.query_settings`/`apply_settings`, maps validation errors to 400, disconnect to 503) in `host/src/cameracommander/api/routes/camera.py`
+- [X] T061 [P] [US2] Implement `POST /api/camera/capture` and `GET /api/camera/captures/{capture_id}` (one-shot capture stored in a TTL-keyed in-memory cache + temp file; optional `save_to_session`) in `host/src/cameracommander/api/routes/camera.py`
+- [X] T062 [P] [US2] Implement `GET /api/camera/preview` (single JPEG) and `GET /api/camera/preview/stream` (MJPEG `multipart/x-mixed-replace; boundary=frame`, 5 fps cap) in `host/src/cameracommander/api/routes/camera.py`
+- [X] T063 [P] [US2] Implement `GET /api/tripod/status`, `POST /api/tripod/move`, `POST /api/tripod/nudge`, `POST /api/tripod/stop`, `PUT /api/tripod/drivers` — all guarded by `SafetyService` and the active-job lock; `move` requires `homed` calibration but `nudge` is allowed under `unknown` (with a logged warning per cli-commands.md) in `host/src/cameracommander/api/routes/tripod.py`
+- [X] T064 [P] [US2] Implement `cameracommander snapshot` CLI (lazy gphoto2 import, `--model-substring`, `--no-autofocus`, exit codes 0/2/10/11) in `host/src/cameracommander/cli/commands/snapshot.py`
+- [X] T065 [P] [US2] Implement `cameracommander tripod` REPL CLI (relative `<pan> <tilt>`, `to <pan> <tilt>`, `home`, `e`/`d`, `s`, `stop`, `q`) in `host/src/cameracommander/cli/commands/tripod.py`
+- [X] T066 [US2] Implement LiveControl view: camera-settings panel (settings table from `/api/camera/settings`, edit + apply), MJPEG `<img src="/api/camera/preview/stream">`, **Test capture** button, **Nudge** controls (pan/tilt buttons with safety-aware enable state), connection-fault banner that disables capture when camera/tripod state is `error` or `disconnected`, in `web/src/views/LiveControl.svelte`
+- [X] T067 [US2] Add periodic `tripod.position` event publication (≤1 Hz idle, ≤4 Hz during a job per host-events.asyncapi.yaml) in `host/src/cameracommander/services/tripod_polling.py` and wire into `AppContainer` lifespan
 
 **Checkpoint**: User Stories 1 AND 2 both work independently. Operator can prep a shoot end-to-end via UI or CLI.
 

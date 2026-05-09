@@ -10,6 +10,7 @@ Constitution V (no premature abstraction).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
@@ -40,6 +41,8 @@ class AppContainer:
     sessions: object | None = None
     disk_guard: object | None = None
     post_process: object | None = None
+    camera_captures: dict[str, tuple[Path, str]] | None = None
+    tripod_polling: object | None = None
 
 
 def get_container(app_or_request: FastAPI | Request) -> AppContainer:

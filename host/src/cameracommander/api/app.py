@@ -23,7 +23,10 @@ from ..persistence.sessions_fs import SessionRepository
 from ..services.calibration import CalibrationService
 from ..services.jobs import JobManager
 from ..services.post_process import VideoAssembler
+from ..services.safety import SafetyService
+from ..services.tripod_polling import TripodPositionPublisher
 from .deps import AppContainer
+from .routes.camera import router as camera_router
 from .routes.events import router as events_router
 from .routes.health import router as health_router
 from .routes.jobs import router as jobs_router
@@ -85,6 +88,7 @@ def create_app(
         event_bus=event_bus,
     )
     post_process = VideoAssembler(event_bus)
+    tripod_polling = TripodPositionPublisher(tripod=tripod, jobs=jobs, event_bus=event_bus)
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -92,9 +96,11 @@ def create_app(
             await camera_adapter.open()
         if tripod is not None:
             await tripod.open()
+        tripod_polling.start()
         try:
             yield
         finally:
+            await tripod_polling.stop()
             if tripod is not None:
                 with contextlib.suppress(Exception):
                     await tripod.close()
@@ -115,8 +121,12 @@ def create_app(
         jobs=jobs,
         sessions=sessions,
         post_process=post_process,
+        safety=SafetyService(tilt_min_deg=-90.0, tilt_max_deg=90.0),
+        camera_captures={},
+        tripod_polling=tripod_polling,
     )
 
+    app.include_router(camera_router)
     app.include_router(events_router)
     app.include_router(health_router)
     app.include_router(jobs_router)
