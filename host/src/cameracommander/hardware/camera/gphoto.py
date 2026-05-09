@@ -97,15 +97,64 @@ class GphotoCameraAdapter:
             return await asyncio.to_thread(self._query_settings_blocking)
 
     def _query_settings_blocking(self) -> dict[str, SettingDescriptor]:
-        # Implementation placeholder
-        return {}
+        config = gp.check_result(gp.gp_camera_get_config(self._camera, self._context))
+        settings: dict[str, SettingDescriptor] = {}
+
+        def walk(widget: Any, path: str = "") -> None:
+            name = gp.check_result(gp.gp_widget_get_name(widget))
+            full_path = f"{path}.{name}" if path else name
+            
+            w_type = gp.check_result(gp.gp_widget_get_type(widget))
+            
+            if w_type == gp.GP_WIDGET_SECTION or w_type == gp.GP_WIDGET_WINDOW:
+                for i in range(gp.check_result(gp.gp_widget_count_children(widget))):
+                    walk(gp.check_result(gp.gp_widget_get_child(widget, i)), full_path)
+            else:
+                try:
+                    val = gp.check_result(gp.gp_widget_get_value(widget))
+                    choices = None
+                    if w_type in (gp.GP_WIDGET_MENU, gp.GP_WIDGET_RADIO):
+                        choices = [gp.check_result(gp.gp_widget_get_choice(widget, i)) 
+                                   for i in range(gp.check_result(gp.gp_widget_get_choices(widget)))]
+                    
+                    type_map = {
+                        gp.GP_WIDGET_TEXT: "TEXT",
+                        gp.GP_WIDGET_RANGE: "RANGE",
+                        gp.GP_WIDGET_TOGGLE: "TOGGLE",
+                        gp.GP_WIDGET_RADIO: "RADIO",
+                        gp.GP_WIDGET_MENU: "MENU",
+                        gp.GP_WIDGET_DATE: "DATE",
+                        gp.GP_WIDGET_BUTTON: "BUTTON",
+                    }
+                    
+                    settings[full_path] = SettingDescriptor(
+                        type=type_map.get(w_type, "UNKNOWN"),
+                        current=val,
+                        choices=choices
+                    )
+                except Exception:
+                    pass
+
+        walk(config)
+        return settings
 
     async def apply_settings(self, settings: dict[str, str | int | float | bool]) -> None:
         async with self._lock:
             await asyncio.to_thread(self._apply_settings_blocking, settings)
 
     def _apply_settings_blocking(self, settings: dict[str, Any]) -> None:
-        pass
+        config = gp.check_result(gp.gp_camera_get_config(self._camera, self._context))
+        for key, val in settings.items():
+            try:
+                parts = key.split(".")
+                widget = config
+                for part in parts:
+                    widget = gp.check_result(gp.gp_widget_get_child_by_name(widget, part))
+                gp.check_result(gp.gp_widget_set_value(widget, str(val)))
+            except Exception as e:
+                raise CameraError(f"setting {key!r} failed: {e}") from e
+        
+        gp.check_result(gp.gp_camera_set_config(self._camera, config, self._context))
 
     async def capture_still(self, *, autofocus: bool = False) -> CaptureResult:
         async with self._lock:
@@ -114,13 +163,18 @@ class GphotoCameraAdapter:
     def _capture_blocking(self, autofocus: bool) -> CaptureResult:
         from datetime import datetime
         import uuid
-
+        
+        # This is a simplified capture, should actually transfer the file
+        path = gp.check_result(gp.gp_camera_capture(self._camera, gp.GP_CAPTURE_IMAGE, self._context))
+        camera_file = gp.check_result(gp.gp_camera_file_get(self._camera, path.folder, path.name, gp.GP_FILE_TYPE_NORMAL, self._context))
+        data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
+        
         return CaptureResult(
             capture_id=str(uuid.uuid4()),
             content_type="image/jpeg",
             captured_at=datetime.now(),
-            size_bytes=0,
-            download_url="",
+            size_bytes=len(data),
+            download_url=""
         )
 
     async def start_recording(self) -> None:
