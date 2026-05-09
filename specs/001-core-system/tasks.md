@@ -45,6 +45,7 @@ description: "Task list for CameraCommander2 — Core System"
 - [X] T008 [P] Implement Pydantic v2 models for `Configuration`, `ConfigurationMetadata`, `CameraConfig`, `TripodConfig` (with nested `serial`), `SafetyConfig`, `OutputConfig` (with nested `video`), and the discriminated `TimelapseSequenceConfig | VideoPanSequenceConfig` union per data-model.md §1 in `host/src/cameracommander/core/config.py`. Include validators: tilt-window covers all keyframes (FR-009), `settle_time_s ≤ interval_s` (FR-017), `frame_filename_template` contains `{index:04d}` (FR-043), `video.fps` required when `video.assemble` (FR-022), `total_frames ≥ 2` (FR-015)
 - [X] T009 [P] Implement Pydantic models for `Job`, `JobStatus` enum, `JobProgress`, `FaultEvent`, `Session`, `SessionSummary`, `SessionAsset`, `HardwareConnection`, `CameraStatus`, `TripodStatus`, `CalibrationState` per data-model.md §2–§5 in `host/src/cameracommander/core/models.py`
 - [X] T010 [P] Implement YAML loader/dumper that round-trips a `Configuration` (UTF-8, block style, `created_at` defaulted on parse) in `host/src/cameracommander/core/config.py` (extend the same module)
+- [X] T097 [P] Implement `HostConfig` Pydantic model and `load_host_configuration` loader for persistent deployment-specific settings (SC-007) in `host/src/cameracommander/core/config.py`
 
 ### Hardware abstraction protocols
 
@@ -162,6 +163,8 @@ description: "Task list for CameraCommander2 — Core System"
 - [X] T064 [P] [US2] Implement `cameracommander snapshot` CLI (lazy gphoto2 import, `--model-substring`, `--no-autofocus`, exit codes 0/2/10/11) in `host/src/cameracommander/cli/commands/snapshot.py`
 - [X] T065 [P] [US2] Implement `cameracommander tripod` REPL CLI (relative `<pan> <tilt>`, `to <pan> <tilt>`, `home`, `e`/`d`, `s`, `stop`, `q`) in `host/src/cameracommander/cli/commands/tripod.py`
 - [X] T066 [US2] Implement LiveControl view: camera-settings panel (settings table from `/api/camera/settings`, edit + apply), MJPEG `<img src="/api/camera/preview/stream">`, **Test capture** button, **Nudge** controls (pan/tilt buttons with safety-aware enable state), connection-fault banner that disables capture when camera/tripod state is `error` or `disconnected`, in `web/src/views/LiveControl.svelte`
+- [X] T095 [US2] Update `LiveControl` view to use tabbed settings navigation grouped by prefix (FR-047)
+- [X] T096 [US2] Add a "Planning" summary tab to `LiveControl` settings highlighting ISO, shutter speed, aperture, and WB (FR-048)
 - [X] T067 [US2] Add periodic `tripod.position` event publication (≤1 Hz idle, ≤4 Hz during a job per host-events.asyncapi.yaml) in `host/src/cameracommander/services/tripod_polling.py` and wire into `AppContainer` lifespan
 
 **Checkpoint**: User Stories 1 AND 2 both work independently. Operator can prep a shoot end-to-end via UI or CLI.

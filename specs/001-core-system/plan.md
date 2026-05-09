@@ -5,7 +5,7 @@
 
 ## Summary
 
-Full rewrite of CameraCommander as three independently versioned components: an ESP-class firmware exposing a versioned serial protocol, a headless Python host application that orchestrates timelapse and video-pan sequences and exposes a REST + WebSocket API, and a decoupled browser-based UI that consumes the host API. The host application supports both real and mock hardware end-to-end so all workflows are testable without a physical camera or tripod. Configuration is YAML-only and equally usable from the CLI and the UI. The minimum-feature surface mirrors the spec's 46 functional requirements, with the architecture optimised for Linux hosts (Raspberry Pi class) and Python 3.12+.
+Full rewrite of CameraCommander as three independently versioned components: an ESP-class firmware exposing a versioned serial protocol, a headless Python host application that orchestrates timelapse and video-pan sequences and exposes a REST + WebSocket API, and a decoupled browser-based UI that consumes the host API. The host application supports both real and mock hardware end-to-end so all workflows are testable without a physical camera or tripod. Configuration is YAML-only and equally usable from the CLI and the UI. The minimum-feature surface mirrors the spec's 48 functional requirements, with the architecture optimised for Linux hosts (Raspberry Pi class) and Python 3.12+.
 
 ## Technical Context
 
@@ -61,11 +61,12 @@ Re-walked the seven principles against `research.md`, `data-model.md`, `quicksta
 
 - **I — Boundary contracts**: every cross-component path is documented in `contracts/firmware-protocol.md`, `contracts/host-api.openapi.yaml`, `contracts/host-events.asyncapi.yaml`, `contracts/cli-commands.md`, and `contracts/config-schema.md`. PASS.
 - **II — Mock-first**: `host-api.openapi.yaml` exposes the same endpoints whether the host runs against real hardware or `--mock`; `firmware-protocol.md` §7 binds the mock TCP server to byte-for-byte parity with the ESP firmware. PASS.
-- **III — Configuration-driven**: `config-schema.md` is the single source of truth for the YAML form; the OpenAPI `Configuration` schema is generated from the same Pydantic models. CLI `validate`/`timelapse`/`pan` and the REST `/api/jobs/*` endpoints accept the same shape. PASS.
+- **III — Configuration-driven**: `config-schema.md` is the single source of truth for the YAML form; the OpenAPI `Configuration` schema is generated from the same Pydantic models. `HostConfig` provides persistent deployment defaults. CLI `validate`/`timelapse`/`pan` and the REST `/api/jobs/*` endpoints accept the same shape. PASS.
 - **IV — Spec-driven**: every section of every artefact carries FR / SC references back to `spec.md`. No scope outside the spec. PASS.
 - **V — Simplicity / no premature abstraction**: still three components, one Python package per component, no DB, no plugin layer, no message bus. The Pi Zero 2 W deployment-target tightening reinforces this — no extra layers were introduced to satisfy the resource budget. PASS.
 - **VI — Observability**: `host-events.asyncapi.yaml` defines the live telemetry channel (hardware status, calibration changes, job progress / faults, position broadcasts, session lifecycle). Loguru sinks documented in `quickstart.md` §4.3. PASS.
 - **VII — Motion safety / calibration**: `data-model.md` §6 lists the three-layer enforcement; `host-api.openapi.yaml` returns HTTP 412 for `calibration_required` and HTTP 422 for `tilt_limit`; the firmware contract preserves the `d`/`e` driver-toggle semantics that flip calibration to `unknown`. PASS.
+- **VIII — User Interface Discoverability**: Camera settings are organized into logical tabs (Planning, Capture, Image) based on gphoto2 prefixes, ensuring high-density settings remain navigable on small screens. PASS.
 
 No regressions. No new `Complexity Tracking` entries. Phase 2 (`/speckit-tasks`) may proceed.
 

@@ -136,3 +136,26 @@ sequence:
 ## 5. Reload from session
 
 `GET /api/sessions/{id}/config` returns the **exact** YAML/JSON used to run that session, satisfying FR-024 ("retrieve the configuration from any past session for re-use") and SC-007 ("Configuration files from one host can be transferred to another host and produce an equivalent run without modification"). The host does not strip or transform the document; what was saved is what is replayed.
+
+---
+
+## 6. Host configuration (host.yaml)
+
+Persistent settings for a specific deployment (e.g. Raspberry Pi). Usually lives at `~/.cameracommander/host.yaml`.
+
+```yaml
+# CameraCommander2 — example host configuration
+camera:
+  model_substring: "EOS"                # default camera selector
+  # image_format: camera-default        # optional override
+  # settings: { ... }                   # optional persistent camera settings
+
+tripod:
+  serial:
+    port: "/dev/ttyUSB0"                # persistent hardware port
+  # microstep: 16                       # optional override
+
+session_library_root: "~/.cameracommander/sessions"
+```
+
+The `serve` command defaults to loading this file if it exists. Settings in a session configuration YAML override these host-level defaults for the duration of that session.

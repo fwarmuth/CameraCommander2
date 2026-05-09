@@ -28,16 +28,16 @@ A photographer wants to create a timelapse of a landscape at dawn. They open the
 
 ### User Story 2 — Verify Hardware and Test Camera Settings Before a Shoot (Priority: P2)
 
-Before starting a long unattended timelapse, the operator wants to verify the hardware is connected, check the live view to focus the lens, adjust camera settings, and make test exposures. They also want to manually nudge the tripod to frame the shot.
+Before starting a long unattended timelapse, the operator wants to verify the hardware is connected, check the live view to focus the lens, adjust camera settings using an organized, tabbed interface, and make test exposures. They also want a summary of the most critical settings to ensure the planner is correctly configured.
 
 **Why this priority**: A misconfigured camera or misaligned tripod will ruin an entire sequence. Manual verification and adjustment before launch is essential for reliable results.
 
-**Independent Test**: Testable with physical hardware or mock adapters. Operator can open the live control view, adjust ISO/shutter/aperture, trigger a test capture, see a thumbnail, and nudge the tripod by defined step increments.
+**Independent Test**: Testable with physical hardware or mock adapters. Operator can open the live control view, browse organized settings tabs, adjust ISO/shutter/aperture in the Planning tab, trigger a test capture, see a thumbnail, and nudge the tripod by defined step increments.
 
 **Acceptance Scenarios**:
 
-1. **Given** the hardware is connected, **When** the operator opens the live control view, **Then** current camera settings are displayed and a live-view image is available for focus verification.
-2. **Given** the live control view is open, **When** the operator changes ISO and triggers a test capture, **Then** the camera applies the new ISO setting and the captured image is immediately available for review.
+1. **Given** the hardware is connected, **When** the operator opens the live control view, **Then** camera settings are displayed in a tabbed interface (Planning, Capture, etc.) and a live-view image is available for focus verification.
+2. **Given** the live control view is open, **When** the operator changes ISO in the Planning tab and triggers a test capture, **Then** the camera applies the new ISO setting and the captured image is immediately available for review.
 3. **Given** the live control view is open, **When** the operator sends a nudge command (e.g. pan right 5°), **Then** the tripod moves by exactly that amount and the current position is updated in the UI.
 4. **Given** no camera is connected, **When** the operator opens the live control view, **Then** the UI displays a clear hardware fault indicator and disables capture controls.
 
@@ -151,7 +151,7 @@ A developer working on the system wants to run the full application stack — ho
 
 **Web UI**
 - **FR-029**: Web UI MUST communicate with the host application exclusively via its public API; no direct hardware access from the UI layer.
-- **FR-030**: Web UI MUST provide a live control view: camera settings, test capture, live-view, manual tripod nudge.
+- **FR-030**: Web UI MUST provide a live control view: organized camera settings, test capture, live-view, and manual tripod nudge.
 - **FR-031**: Web UI MUST provide a planner: configure and launch timelapse or video pan jobs.
 - **FR-032**: Web UI MUST provide a monitor: real-time job progress, hardware connection status, current position.
 - **FR-033**: Web UI MUST provide a session library: list, inspect, reload settings, trigger post-processing.
@@ -178,6 +178,10 @@ A developer working on the system wants to run the full application stack — ho
 - **FR-044**: System MUST provide a mock camera adapter that simulates capture and live-view without physical hardware.
 - **FR-045**: System MUST provide a mock firmware server (network socket) that implements the same protocol as the ESP firmware.
 - **FR-046**: Mock camera and mock firmware MUST be operable simultaneously for full end-to-end workflow testing without hardware.
+
+**User Interface Organization**
+- **FR-047**: System MUST organize camera settings into logical groups (e.g. Capture, Image, Other) using a tabbed interface for improved discoverability.
+- **FR-048**: System MUST provide a "Planning" summary view in the live control tab that highlights the most critical shoot parameters (ISO, shutter speed, aperture, white balance) to assist in session configuration.
 
 ---
 
