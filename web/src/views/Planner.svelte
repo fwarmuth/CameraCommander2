@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, ApiError } from "../lib/api/client";
   import type { Configuration } from "../lib/api/types";
-  import { activeJob, calibration, refreshStatus } from "../lib/stores";
+  import { activeJob, calibration, plannerConfiguration, refreshStatus } from "../lib/stores";
 
   type PlannerMode = "timelapse" | "video_pan";
 
@@ -28,6 +28,44 @@
 
   $: tiltValid =
     startTilt >= tiltMin && startTilt <= tiltMax && targetTilt >= tiltMin && targetTilt <= tiltMax;
+
+  $: if ($plannerConfiguration) {
+    applyConfiguration($plannerConfiguration);
+    plannerConfiguration.set(null);
+  }
+
+  function applyConfiguration(value: Configuration): void {
+    name = value.metadata.name;
+    outputDir = value.output.output_dir;
+    tiltMin = value.safety.tilt_min_deg;
+    tiltMax = value.safety.tilt_max_deg;
+    startPan = value.sequence.start.pan_deg;
+    startTilt = value.sequence.start.tilt_deg;
+    targetPan = value.sequence.target.pan_deg;
+    targetTilt = value.sequence.target.tilt_deg;
+    if (value.camera.settings) {
+      const settings = value.camera.settings;
+      if (typeof settings["main.imgsettings.iso"] === "number") iso = settings["main.imgsettings.iso"];
+      if (typeof settings["main.capturesettings.shutterspeed"] === "string") {
+        shutter = settings["main.capturesettings.shutterspeed"];
+      }
+      if (typeof settings["main.capturesettings.aperture"] === "number") {
+        aperture = settings["main.capturesettings.aperture"];
+      }
+    }
+    if (value.sequence.kind === "timelapse") {
+      mode = "timelapse";
+      totalFrames = value.sequence.total_frames;
+      intervalS = value.sequence.interval_s;
+      settleS = value.sequence.settle_time_s;
+      assembleVideo = value.output.video?.assemble ?? true;
+      videoFps = value.output.video?.fps ?? 25;
+    } else {
+      mode = "video_pan";
+      durationS = value.sequence.duration_s;
+    }
+    status = "Loaded configuration from session library.";
+  }
 
   function config(): Configuration {
     return {

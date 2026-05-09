@@ -198,15 +198,15 @@ description: "Task list for CameraCommander2 — Core System"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T074 [P] [US4] Contract test: `GET /api/sessions`, `GET /api/sessions/{id}`, `DELETE /api/sessions/{id}`, `GET /api/sessions/{id}/config`, `POST /api/sessions/{id}/assemble`, `GET /api/sessions/{id}/assets/{asset_path}` against a fixture session library in `host/tests/contract/test_sessions_endpoints.py`
+- [X] T074 [P] [US4] Contract test: `GET /api/sessions`, `GET /api/sessions/{id}`, `DELETE /api/sessions/{id}`, `GET /api/sessions/{id}/config`, `POST /api/sessions/{id}/assemble`, `GET /api/sessions/{id}/assets/{asset_path}` against a fixture session library in `host/tests/contract/test_sessions_endpoints.py`
 
 ### Implementation for User Story 4
 
-- [ ] T075 [P] [US4] Implement session listing/get/delete handlers (paged, newest-first, optional `tag` filter) in `host/src/cameracommander/api/routes/sessions.py`
-- [ ] T076 [US4] Implement `POST /api/sessions/{id}/assemble` — reuses T035; runs under the single-job lock; emits `session.<id>.assemble` events; returns 202 + `Session`; handles 409 when capture is running, in `host/src/cameracommander/api/routes/sessions.py`
-- [ ] T077 [P] [US4] Implement `GET /api/sessions/{id}/assets/{asset_path}` with safe path resolution (no traversal outside session dir) in `host/src/cameracommander/api/routes/sessions.py`
-- [ ] T078 [US4] Implement Library view: paginated table (newest first, badges for flags `cadence_warning`/`partial_due_to_disk`/`fault`), session detail drawer with embedded config viewer, **Reload settings** that navigates to Planner with the config pre-loaded (URL param or store hand-off), **Assemble video** button wired to `POST .../assemble`, in `web/src/views/Library.svelte`
-- [ ] T079 [P] [US4] Bridge Library→Planner reload: extend the Planner form (T051) to accept an initial `Configuration` (from store or query param) and prefill fields without hitting the server again
+- [X] T075 [P] [US4] Implement session listing/get/delete handlers (paged, newest-first, optional `tag` filter) in `host/src/cameracommander/api/routes/sessions.py`
+- [X] T076 [US4] Implement `POST /api/sessions/{id}/assemble` — reuses T035; runs under the single-job lock; emits `session.<id>.assemble` events; returns 202 + `Session`; handles 409 when capture is running, in `host/src/cameracommander/api/routes/sessions.py`
+- [X] T077 [P] [US4] Implement `GET /api/sessions/{id}/assets/{asset_path}` with safe path resolution (no traversal outside session dir) in `host/src/cameracommander/api/routes/sessions.py`
+- [X] T078 [US4] Implement Library view: paginated table (newest first, badges for flags `cadence_warning`/`partial_due_to_disk`/`fault`), session detail drawer with embedded config viewer, **Reload settings** that navigates to Planner with the config pre-loaded (URL param or store hand-off), **Assemble video** button wired to `POST .../assemble`, in `web/src/views/Library.svelte`
+- [X] T079 [P] [US4] Bridge Library→Planner reload: extend the Planner form (T051) to accept an initial `Configuration` (from store or query param) and prefill fields without hitting the server again
 
 **Checkpoint**: Spec User Stories 1–4 are independently usable.
 

@@ -72,7 +72,7 @@
       {:else if view === "monitor"}
         <Monitor />
       {:else}
-        <Library />
+        <Library on:reloadPlanner={() => (view = "planner")} />
       {/if}
     </div>
   </section>
