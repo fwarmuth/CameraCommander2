@@ -12,6 +12,16 @@
   let captureUrl = "";
   let message = "Load camera settings to begin.";
   let busy = false;
+  let activeTab = "Planning";
+
+  const planningKeys = [
+    "main.imgsettings.iso",
+    "main.capturesettings.shutterspeed",
+    "main.capturesettings.aperture",
+    "main.imgsettings.whitebalance",
+    "main.capturesettings.exposurecompensation",
+    "main.capturesettings.focusmode",
+  ];
 
   $: cameraFault =
     $hardwareStatus?.camera.state === "error" || $hardwareStatus?.camera.state === "disconnected";
@@ -22,6 +32,26 @@
   $: currentTilt = $hardwareStatus?.tripod.position_tilt_deg ?? 0;
   $: canTiltDown = currentTilt - stepDeg >= tiltMin;
   $: canTiltUp = currentTilt + stepDeg <= tiltMax;
+
+  $: groups = Object.keys(settings).reduce(
+    (acc, key) => {
+      const parts = key.split(".");
+      const groupName = parts.length > 1 ? parts[1] : "other";
+      if (!acc[groupName]) acc[groupName] = [];
+      acc[groupName].push(key);
+      return acc;
+    },
+    {} as Record<string, string[]>,
+  );
+
+  $: tabs = ["Planning", ...Object.keys(groups).sort()];
+
+  function getActiveKeys(tab: string): string[] {
+    if (tab === "Planning") {
+      return planningKeys.filter((k) => settings[k]);
+    }
+    return groups[tab] || [];
+  }
 
   function describe(error: unknown, fallback: string): string {
     if (error instanceof ApiError) return `${error.payload.error}: ${error.message}`;
@@ -115,21 +145,35 @@
         <p class="mt-4 rounded-2xl bg-red-100 p-3 font-bold text-red-800">Camera is {$hardwareStatus?.camera.state ?? "unknown"}; capture controls are disabled.</p>
       {/if}
 
-      <div class="mt-5 grid max-h-[28rem] gap-3 overflow-auto pr-2">
-        {#each Object.entries(settings) as [key, descriptor]}
-          <label class="grid gap-2 rounded-2xl bg-stone-100 p-3 md:grid-cols-[1fr_14rem] md:items-center">
+      <nav class="mt-6 flex gap-1 overflow-x-auto rounded-2xl bg-stone-100 p-1">
+        {#each tabs as tab}
+          <button
+            class={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+              activeTab === tab ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
+            }`}
+            on:click={() => (activeTab = tab)}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        {/each}
+      </nav>
+
+      <div class="mt-4 grid max-h-[24rem] gap-3 overflow-auto pr-2">
+        {#each getActiveKeys(activeTab) as key}
+          {@const descriptor = settings[key]}
+          <label class="grid gap-2 rounded-2xl border border-stone-200 p-3 md:grid-cols-[1fr_14rem] md:items-center">
             <span>
-              <strong class="block text-sm">{key}</strong>
-              <span class="text-xs text-stone-500">{descriptor.type}</span>
+              <strong class="block text-sm">{key.split(".").pop()}</strong>
+              <span class="text-[10px] uppercase tracking-wider text-stone-400">{key}</span>
             </span>
             {#if descriptor.choices?.length}
-              <select class="rounded-xl border p-2" bind:value={pending[key]}>
+              <select class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]}>
                 {#each descriptor.choices as choice}
                   <option value={choice}>{choice}</option>
                 {/each}
               </select>
             {:else}
-              <input class="rounded-xl border p-2" bind:value={pending[key]} />
+              <input class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]} />
             {/if}
           </label>
         {/each}
