@@ -38,13 +38,17 @@ def command(
 
 
 async def _run(cfg, *, mock_camera: bool, mock_tripod: bool) -> None:
-    calibration = CalibrationService()
+    from cameracommander.api.websocket import EventBus
+
+    bus = EventBus()
+    calibration = CalibrationService(bus)
     calibration.mark_homed()
     jobs = JobManager(
+        bus=bus,
         camera=make_camera(cfg, mock=mock_camera),
         tripod=make_tripod(cfg, mock=mock_tripod),
         calibration=calibration,
-        sessions=SessionRepository(),
+        sessions=SessionRepository(Path(cfg.output.output_dir).parent),
     )
     try:
         await jobs.open()

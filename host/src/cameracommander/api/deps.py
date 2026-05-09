@@ -15,7 +15,23 @@ if TYPE_CHECKING:
 @dataclass
 class AppContainer:
     """Singleton-like container for shared services and hardware adapters."""
+
     camera: CameraAdapter | None = None
     tripod: TripodAdapter | None = None
     bus: EventBus | None = None
     jobs: Any = None
+    calibration: Any = None
+    sessions: Any = None
+    safety: Any = None
+
+
+def get_container(app: Any) -> AppContainer:
+    return app.state.container
+
+
+def get_event_bus(app: Any) -> EventBus:
+    return get_container(app).bus
+
+
+def get_job_manager(app: Any) -> Any:
+    return get_container(app).jobs

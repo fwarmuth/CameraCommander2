@@ -26,10 +26,34 @@ def create_app(
     tripod: TripodAdapter | None = None,
 ) -> FastAPI:
     """Factory to create the FastAPI application instance."""
-    
+
     bus = EventBus()
-    container = AppContainer(camera=camera, tripod=tripod, bus=bus)
-    
+    from ..services.calibration import CalibrationService
+    from ..services.disk import DiskGuard
+    from ..services.jobs import JobManager
+    from ..services.safety import SafetyService
+
+    calibration = CalibrationService(bus)
+    safety = SafetyService(tilt_min=-90, tilt_max=90)  # Default
+    disk = DiskGuard(Path.home() / ".cameracommander" / "sessions")
+    jobs = JobManager(
+        bus=bus,
+        camera=camera,
+        tripod=tripod,
+        calibration=calibration,
+        safety=safety,
+        disk=disk,
+    )
+
+    container = AppContainer(
+        camera=camera,
+        tripod=tripod,
+        bus=bus,
+        jobs=jobs,
+        calibration=calibration,
+        safety=safety,
+    )
+
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Connect hardware
@@ -37,21 +61,18 @@ def create_app(
             await container.camera.open()
         if container.tripod:
             await container.tripod.open()
-        
+
         yield
-        
+
         # Cleanup hardware
         if container.camera:
             await container.camera.close()
         if container.tripod:
             await container.tripod.close()
 
-    app = FastAPI(
-        title="CameraCommander2",
-        version="0.1.0",
-        lifespan=lifespan
-    )
-    
+    app = FastAPI(title="CameraCommander2", version="0.1.0", lifespan=lifespan)
+    app.state.container = container
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -59,19 +80,17 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    # Mount routers (Phases 3-6)
-    # Routes mounted below(camera_router, prefix="/api/camera", tags=["camera"])
-    from .routes import health, jobs
+
+    from .routes import camera, events, health, jobs, sessions, tripod
+
     app.include_router(health.router, prefix="/api", tags=["health"])
     app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
-    from .routes import camera, tripod
     app.include_router(camera.router, prefix="/api/camera", tags=["camera"])
     app.include_router(tripod.router, prefix="/api/tripod", tags=["tripod"])
-    from .routes import sessions
     app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
-    
-    # Static files (Web SPA)
+    app.include_router(events.router, tags=["events"])
+
+    # Static files (Web SPA) - must be last
     web_dist = Path(__file__).parents[4] / "web" / "dist"
     if web_dist.exists():
         app.mount("/", StaticFiles(directory=web_dist, html=True), name="static")
