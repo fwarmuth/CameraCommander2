@@ -11,6 +11,9 @@
 
 ### Session 2026-05-09
 - Q: Since the application controls physical hardware and lives on the local network, should the web interface implement any form of authentication? → A: None (Trust the local network - default for v1).
+- Q: Since the Pi has limited storage (SD card), should the system implement an automatic cleanup policy for old sessions, or should it be entirely manual? → A: Low-Space Auto-Delete (Oldest sessions deleted when space is critical).
+- Q: Since video assembly (ffmpeg) is CPU-intensive, should the system allow a user to assemble a video while another job is running, or should it use the same global job lock? → A: Sequential Only (Assembly uses the same lock as jobs); video assembly should also be false by default.
+- Q: Should the calibration state persist across application restarts, or should the operator be required to re-home every time? → A: Reset (Force homing on every boot/restart - Safest).
 
 ---
 
@@ -146,7 +149,7 @@ A developer working on the system wants to run the full application stack — ho
 
 **Output & Post-Processing**
 - **FR-021**: System MUST store all captured images in a configurable output directory with a consistent naming scheme.
-- **FR-022**: System MUST assemble timelapse frames into a video file with configurable frame rate and format.
+- **FR-022**: System MUST assemble timelapse frames into a video file with configurable frame rate and format; this feature MUST be disabled by default to preserve resources on limited hardware.
 - **FR-023**: System MUST maintain a persistent session library with session metadata, configuration, and output artefacts.
 - **FR-024**: Users MUST be able to retrieve the configuration from any past session for re-use.
 - **FR-025**: Video assembly MUST be triggerable separately from capture (allowing post-capture assembly).
@@ -178,6 +181,7 @@ A developer working on the system wants to run the full application stack — ho
 **Calibration**
 - **FR-040**: System MUST provide a "set current position as home" action that designates the tripod's current physical position as the (0°, 0°) coordinate origin.
 - **FR-041**: Automated sequences MUST be blocked and the operator notified when calibration state is unknown.
+- **FR-051**: Calibration state MUST reset to "unknown" on every application restart to ensure hardware safety (SC-005).
 
 **Image Handling**
 - **FR-042**: The system MUST capture and store images in whatever format the camera is currently configured for (JPEG, RAW, or RAW+JPEG); no format is forced by the system.
@@ -234,6 +238,3 @@ A developer working on the system wants to run the full application stack — ho
 - Only one job (timelapse or video pan) may run at a time; concurrent jobs are out of scope.
 - Position state is maintained in software (step counting); hardware encoders are not assumed.
 - Disk space fault threshold defaults to 200 MB remaining; this value is configurable.
-o 200 MB remaining; this value is configurable.
-igurable.
-o 200 MB remaining; this value is configurable.
