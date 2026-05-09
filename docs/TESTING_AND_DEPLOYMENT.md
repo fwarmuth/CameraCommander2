@@ -91,17 +91,41 @@ Now, connect your ESP board (ESP8266 or ESP32) to your laptop to flash it and pe
     *   Type \`V\` and press enter; it should respond with \`VERSION 1.0.x\`.
 
 3.  **Interactive Tripod Test (Laptop -> Real ESP):**
-    Identify your serial port (e.g., \`/dev/ttyUSB0\` or \`/dev/cu.usbserial-xxx\`).
+    Identify your serial port (e.g., \`/dev/ttyUSB0\` or \`/dev/cu.usbserial-xxx\`). The CLI requires a configuration file to know which port to use.
+
+    Create a temporary file named \`test-rig.yaml\`:
+    \`\`\`yaml
+    metadata:
+      name: "rig-test"
+    tripod:
+      serial:
+        port: "/dev/ttyUSB0"  # <-- Change this to your port
+    camera:
+      model_substring: "MOCK"
+    safety:
+      tilt_min_deg: -45
+      tilt_max_deg: 45
+    output:
+      output_dir: "./output"
+    sequence:
+      total_frames: 2
+      interval_s: 1
+      settle_time_s: 0
+      start: { pan_deg: 0, tilt_deg: 0 }
+      target: { pan_deg: 0, tilt_deg: 0 }
+    \`\`\`
+
+    Then run the tripod REPL:
     \`\`\`bash
     cd host
-    # Use the tripod REPL for manual control
-    uv run cameracommander tripod --port /dev/ttyUSB0
+    uv run cameracommander tripod test-rig.yaml
     \`\`\`
-    *   Type \`s\` to enable motors (listen for the click/hum).
+    *   Type \`e\` to enable motors (listen for the click/hum).
     *   Type \`1 0\` to move Pan 1 degree.
     *   Type \`0 1\` to move Tilt 1 degree.
-    *   Type \`e\` to disable motors.
-    *   Type \`home\` to set the current position as (0,0).
+    *   Type \`s\` to see the current status.
+    *   Type \`d\` to disable motors.
+    *   Type \`q\` to quit.
 
 ---
 
