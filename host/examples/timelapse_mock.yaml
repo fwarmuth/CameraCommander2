@@ -1,24 +1,19 @@
 metadata:
-  name: "Mock timelapse"
-  tags: ["mock", "quickstart"]
-camera: {}
+  name: "Mock Timelapse"
+camera:
+  model_substring: "MOCK"
 tripod:
   serial:
     port: "socket://127.0.0.1:9999"
 safety:
-  tilt_min_deg: -45.0
-  tilt_max_deg: 45.0
-  disk_min_free_bytes: 0
-  disk_avg_frame_bytes: 1
+  tilt_min_deg: -45
+  tilt_max_deg: 45
 output:
-  output_dir: "./output/mock-timelapse"
-  video:
-    assemble: false
-    fps: 2
+  output_dir: "./output"
 sequence:
-  kind: timelapse
-  total_frames: 3
-  interval_s: 0.2
+  kind: "timelapse"
+  total_frames: 10
+  interval_s: 1.0
   settle_time_s: 0.0
-  start: { pan_deg: 0.0, tilt_deg: 0.0 }
-  target: { pan_deg: 5.0, tilt_deg: 2.0 }
+  start: { pan_deg: 0, tilt_deg: 0 }
+  target: { pan_deg: 10, tilt_deg: 0 }

@@ -1,132 +1,60 @@
-"""Domain exception hierarchy for the CameraCommander host application.
-
-Every cross-cutting failure mode in the spec maps to one of these classes;
-API/CLI layers translate them into HTTP status codes and CLI exit codes.
-"""
+"""Domain exception hierarchy for CameraCommander2."""
 
 from __future__ import annotations
 
 
 class CameraCommanderError(Exception):
-    """Base class for all domain errors raised inside the host application."""
+    """Base exception for all CameraCommander2 errors."""
 
-    code: str = "internal_error"
+    message: str
 
-    def __init__(self, message: str = "", **details: object) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__(message)
-        self.message = message or self.__class__.__name__
-        self.details: dict[str, object] = dict(details)
-
-
-# --- Configuration / validation -------------------------------------------------
+        self.message = message
 
 
 class ConfigError(CameraCommanderError):
-    """Configuration document failed validation (FR-028)."""
-
-    code = "config_invalid"
-
-
-# --- Motion safety / calibration ------------------------------------------------
+    """Raised when configuration is invalid or missing required fields."""
 
 
 class MotionLimitError(CameraCommanderError):
-    """A motion command would exceed the configured tilt safety window (FR-009)."""
-
-    code = "tilt_limit"
+    """Raised when a move would exceed hardware or safety limits."""
 
 
 class CalibrationRequiredError(CameraCommanderError):
-    """An automated job requires homed calibration but state is unknown (FR-041)."""
-
-    code = "calibration_required"
+    """Raised when an automated job is attempted without calibration."""
 
 
-# --- Tripod / firmware ---------------------------------------------------------
+class MotorStallError(CameraCommanderError):
+    """Raised when the firmware fails to complete a move in time."""
 
 
-class TripodError(CameraCommanderError):
-    """Generic tripod / firmware fault — superclass for the more specific ones."""
-
-    code = "tripod_error"
-
-
-class MotorStallError(TripodError):
-    """A move command did not complete within the expected duration plus margin (FR-037)."""
-
-    code = "motor_stall"
-
-
-class SerialLostError(TripodError):
-    """Serial / TCP link to the firmware was lost mid-operation."""
-
-    code = "serial_lost"
-
-
-class ProtocolVersionMismatchError(TripodError):
-    """Firmware reported a major protocol version the host is not compatible with (SC-008)."""
-
-    code = "protocol_version_mismatch"
-
-
-# --- Camera --------------------------------------------------------------------
+class SerialLostError(CameraCommanderError):
+    """Raised when communication with the firmware is interrupted."""
 
 
 class CameraError(CameraCommanderError):
-    """Generic camera-side fault."""
-
-    code = "camera_error"
+    """Raised when gphoto2 encounters a hardware or driver error."""
 
 
-class CameraDisconnectedError(CameraError):
-    """Camera is not (or no longer) connected."""
-
-    code = "camera_disconnected"
-
-
-class CaptureError(CameraError):
-    """A still or video capture attempt failed (FR-002)."""
-
-    code = "camera_capture_failed"
-
-
-# --- Resources / scheduling ----------------------------------------------------
+class CaptureError(CameraCommanderError):
+    """Raised when a still or video capture fails."""
 
 
 class DiskFullError(CameraCommanderError):
-    """Available disk space dropped below the safety threshold (FR-036)."""
-
-    code = "disk_full"
+    """Raised when available disk space is below safety threshold."""
 
 
 class JobAlreadyRunningError(CameraCommanderError):
-    """A second job launch was rejected because one is already running (FR-039)."""
-
-    code = "job_already_running"
+    """Raised when overlapping jobs are requested."""
 
 
-# --- Mock-only -----------------------------------------------------------------
+class ProtocolVersionMismatchError(CameraCommanderError):
+    """Raised when firmware reports an incompatible protocol major version."""
 
 
 class MockOnlyError(CameraCommanderError):
-    """An operation is only valid against a mock adapter (used in tests / CI)."""
+    """Raised when a mock-specific feature is used in real hardware mode."""
 
-    code = "mock_only"
-
-
-__all__ = [
-    "CalibrationRequiredError",
-    "CameraCommanderError",
-    "CameraDisconnectedError",
-    "CameraError",
-    "CaptureError",
-    "ConfigError",
-    "DiskFullError",
-    "JobAlreadyRunningError",
-    "MockOnlyError",
-    "MotionLimitError",
-    "MotorStallError",
-    "ProtocolVersionMismatchError",
-    "SerialLostError",
-    "TripodError",
-]
+class TripodError(CameraCommanderError):
+    """Raised when the tripod encountered a hardware or protocol error."""

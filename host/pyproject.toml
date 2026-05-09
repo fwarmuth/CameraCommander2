@@ -4,55 +4,33 @@ version = "0.1.0"
 description = "Headless host application for the CameraCommander2 motorised pan-tilt head: timelapse and video-pan orchestration with REST + WebSocket API."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
-authors = [{ name = "CameraCommander Contributors" }]
-keywords = ["timelapse", "tripod", "gphoto2", "raspberry-pi", "fastapi"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Environment :: Console",
-    "Environment :: Web Environment",
-    "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Multimedia :: Graphics :: Capture",
-]
-
 dependencies = [
-    "fastapi>=0.111",
-    "uvicorn[standard]>=0.30",
-    "pydantic>=2.7",
-    "typer>=0.12",
-    "pyyaml>=6.0",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.1",
+    "pydantic>=2.7.4",
+    "typer>=0.12.3",
+    "pyyaml>=6.0.1",
     "pyserial>=3.5",
-    "gphoto2>=2.5; platform_system == 'Linux'",
-    "pillow>=10.3",
+    "gphoto2>=2.5.0",
+    "pillow>=10.3.0",
     "piexif>=1.1.3",
-    "loguru>=0.7",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.2",
-    "pytest-asyncio>=0.23",
-    "httpx>=0.27",
-    "ruff>=0.5",
-    "mypy>=1.10",
-    "types-PyYAML",
+    "loguru>=0.7.2",
 ]
 
 [project.scripts]
 cameracommander = "cameracommander.cli.main:app"
 
-[build-system]
-requires = ["hatchling>=1.24"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/cameracommander"]
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.2.2",
+    "pytest-asyncio>=0.23.7",
+    "httpx>=0.27.0",
+    "ruff>=0.4.10",
+    "mypy>=1.10.1",
+    "types-pyyaml>=6.0.12",
+]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
 markers = [

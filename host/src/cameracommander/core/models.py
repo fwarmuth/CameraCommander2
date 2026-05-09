@@ -6,33 +6,18 @@ contracts. Configuration models live in :mod:`cameracommander.core.config`.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from .config import Angles, Configuration
 
 
-def _utcnow() -> datetime:
-    return datetime.now(tz=UTC)
-
-
-# --- Enums ---------------------------------------------------------------
-
-
-class JobStatus(StrEnum):
-    pending = "pending"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-    stopped = "stopped"
-
-
-class JobKind(StrEnum):
-    timelapse = "timelapse"
-    video_pan = "video_pan"
+class CalibrationValue(StrEnum):
+    unknown = "unknown"
+    homed = "homed"
 
 
 class CameraState(StrEnum):
@@ -41,87 +26,21 @@ class CameraState(StrEnum):
     error = "error"
 
 
+class CameraStatus(BaseModel):
+    state: CameraState
+    model: str | None = None
+    last_error: str | None = None
+    battery_pct: int | None = None
+
+
 class TripodState(StrEnum):
     connected = "connected"
     disconnected = "disconnected"
     error = "error"
 
 
-class CalibrationStateValue(StrEnum):
-    unknown = "unknown"
-    homed = "homed"
-
-
-FaultCode = Literal[
-    "camera_disconnected",
-    "camera_capture_failed",
-    "motor_stall",
-    "serial_lost",
-    "disk_full",
-    "tilt_limit",
-    "calibration_required",
-    "config_invalid",
-    "user_stopped",
-]
-
-
-# --- Faults -------------------------------------------------------------
-
-
-class FaultEvent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    code: FaultCode
-    message: str
-    frame_index: int | None = None
-    last_position: Angles | None = None
-    recoverable: bool = False
-
-
-# --- Job ---------------------------------------------------------------
-
-
-class JobProgress(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    frames_completed: Annotated[int, Field(ge=0)] = 0
-    frames_total: Annotated[int, Field(ge=0)] = 0
-    motion_pct: Annotated[float, Field(ge=0.0, le=1.0)] = 0.0
-    estimated_finish_at: datetime | None = None
-
-
-class Job(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    job_id: str
-    kind: JobKind
-    status: JobStatus = JobStatus.pending
-    created_at: datetime = Field(default_factory=_utcnow)
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    progress: JobProgress = Field(default_factory=JobProgress)
-    last_position: Angles | None = None
-    fault: FaultEvent | None = None
-    cadence_warnings: int = 0
-    session_id: str | None = None
-
-
-# --- Hardware status --------------------------------------------------
-
-
-class CameraStatus(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    state: CameraState = CameraState.disconnected
-    model: str | None = None
-    last_error: str | None = None
-    battery_pct: int | None = Field(default=None, ge=0, le=100)
-
-
 class TripodStatus(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    state: TripodState = TripodState.disconnected
+    state: TripodState
     firmware_version: str | None = None
     protocol_compatible: bool = True
     drivers_enabled: bool = False
@@ -132,32 +51,64 @@ class TripodStatus(BaseModel):
     last_error: str | None = None
 
 
-class CalibrationStatus(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    state: CalibrationStateValue = CalibrationStateValue.unknown
-    set_at: datetime | None = None
-
-
 class HardwareStatus(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    camera: CameraStatus = Field(default_factory=CameraStatus)
-    tripod: TripodStatus = Field(default_factory=TripodStatus)
-    calibration: CalibrationStatus = Field(default_factory=CalibrationStatus)
-    active_job_id: str | None = None
-    updated_at: datetime = Field(default_factory=_utcnow)
+    camera: CameraStatus
+    tripod: TripodStatus
+    calibration_state: CalibrationValue
+    active_job_id: Annotated[str, Field(description="UUID")] | None = None
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 
-# --- Session ---------------------------------------------------------
+class JobKind(StrEnum):
+    timelapse = "timelapse"
+    video_pan = "video_pan"
+    assembly = "assembly"
 
 
-SessionAssetKind = Literal["frame", "video", "metadata", "preview"]
+class JobStatus(StrEnum):
+    pending = "pending"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+    stopped = "stopped"
+
+
+class JobProgress(BaseModel):
+    frames_completed: int = 0
+    frames_total: int = 0
+    motion_pct: float = 0.0
+    estimated_finish_at: datetime | None = None
+
+
+class FaultEvent(BaseModel):
+    code: str
+    message: str
+    frame_index: int | None = None
+    last_position: Angles | None = None
+    recoverable: bool = False
+
+
+class Job(BaseModel):
+    job_id: Annotated[str, Field(description="UUID")]
+    kind: JobKind
+    status: JobStatus
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    progress: JobProgress = Field(default_factory=JobProgress)
+    last_position: Angles | None = None
+    fault: FaultEvent | None = None
+    session_id: Annotated[str, Field(description="UUID")] | None = None
+
+
+class SessionAssetKind(StrEnum):
+    frame = "frame"
+    video = "video"
+    metadata = "metadata"
+    preview = "preview"
 
 
 class SessionAsset(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
     path: str
     kind: SessionAssetKind
     size_bytes: int | None = None
@@ -165,47 +116,30 @@ class SessionAsset(BaseModel):
     label: str | None = None
 
 
-class SessionMetrics(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    frames_captured: int = 0
-    frames_planned: int = 0
-    duration_s: float = 0.0
-    cadence_warnings: int = 0
-
-
 class SessionSummary(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    session_id: str
+    session_id: Annotated[str, Field(description="UUID")]
     kind: JobKind
     status: JobStatus
-    created_at: datetime
-    finished_at: datetime | None = None
     name: str
     tags: list[str] = Field(default_factory=list)
+    created_at: datetime
+    finished_at: datetime | None = None
     frames_captured: int = 0
     frames_planned: int = 0
     flags: dict[str, bool] = Field(default_factory=dict)
 
 
 class Session(SessionSummary):
-    """Persisted record of a Job. Lives at ``~/.cameracommander/sessions/<id>/``."""
-
-    model_config = ConfigDict(extra="forbid")
-
     configuration: Configuration
-    metrics: SessionMetrics = Field(default_factory=SessionMetrics)
     assets: list[SessionAsset] = Field(default_factory=list)
     fault: FaultEvent | None = None
 
 
+    "CaptureResult",
 __all__ = [
-    "CalibrationStateValue",
-    "CalibrationStatus",
+    "CalibrationValue",
     "CameraState",
     "CameraStatus",
-    "FaultCode",
     "FaultEvent",
     "HardwareStatus",
     "Job",
@@ -215,8 +149,15 @@ __all__ = [
     "Session",
     "SessionAsset",
     "SessionAssetKind",
-    "SessionMetrics",
     "SessionSummary",
     "TripodState",
     "TripodStatus",
 ]
+
+class CaptureResult(BaseModel):
+    """Result of a one-shot still capture."""
+    capture_id: Annotated[str, Field(description="UUID")]
+    content_type: str
+    captured_at: datetime
+    size_bytes: int
+    download_url: str

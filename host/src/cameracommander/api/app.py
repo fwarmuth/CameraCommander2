@@ -2,152 +2,80 @@
 
 The factory keeps the surface narrow: build the app, mount the routers,
 register lifespan hooks that open and close hardware adapters, and serve the
-prebuilt web SPA from ``web/dist/`` if it's present alongside the host. Heavy
-service wiring (jobs, safety, calibration) lands during the User Story 1 phase;
-this module is the foundational scaffold.
+prebuilt web SPA from ``web/dist/`` when present.
 """
 
 from __future__ import annotations
 
 import contextlib
-from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import AsyncIterator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from ..core.logging import logger
-from ..hardware.camera.mock import MockCameraAdapter
-from ..persistence.sessions_fs import SessionRepository
-from ..services.calibration import CalibrationService
-from ..services.jobs import JobManager
-from ..services.post_process import VideoAssembler
-from ..services.safety import SafetyService
-from ..services.tripod_polling import TripodPositionPublisher
 from .deps import AppContainer
-from .routes.camera import router as camera_router
-from .routes.events import router as events_router
-from .routes.health import router as health_router
-from .routes.jobs import router as jobs_router
-from .routes.sessions import router as sessions_router
-from .routes.tripod import router as tripod_router
 from .websocket import EventBus
-
-if TYPE_CHECKING:
-    from ..hardware.camera.base import CameraAdapter
-    from ..hardware.tripod.base import TripodAdapter
-else:
-    CameraAdapter = object
-TripodAdapter = object
-
-_WEB_DIST_WARNING_EMITTED = False
-
-
-def _resolve_web_dist() -> Path | None:
-    """Locate ``web/dist/`` relative to the running host package.
-
-    The Pi-side deploy puts ``host/`` and ``web/dist/`` as siblings under
-    ``/opt/cameracommander/``; in development they're siblings in the repo. If
-    no build is present, return None — the host then exposes only the API and
-    logs a one-time warning.
-    """
-
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / "web" / "dist"
-        if candidate.is_dir():
-            return candidate
-        # Stop searching once we've passed the repo root.
-        if (parent / ".git").exists() or (parent / "host").is_dir():
-            return candidate if candidate.is_dir() else None
-    return None
+from ..hardware.camera.base import CameraAdapter
+from ..hardware.tripod.base import TripodAdapter
 
 
 def create_app(
-    *,
     camera: CameraAdapter | None = None,
     tripod: TripodAdapter | None = None,
-    session_root: str | Path | None = None,
-    serve_static: bool = True,
 ) -> FastAPI:
-    """Build the FastAPI application.
-
-    Adapters are passed in (rather than constructed inside) so the CLI's
-    ``--mock`` flags can swap implementations cleanly. Route modules added in
-    later phases (jobs, sessions, camera, tripod) attach via the same factory.
-    """
-
-    event_bus = EventBus()
-    camera_adapter = camera or MockCameraAdapter()
-    calibration = CalibrationService(event_bus)
-    sessions = SessionRepository(session_root)
-    jobs = JobManager(
-        camera=camera_adapter,
-        tripod=tripod,
-        calibration=calibration,
-        sessions=sessions,
-        event_bus=event_bus,
-    )
-    post_process = VideoAssembler(event_bus)
-    tripod_polling = TripodPositionPublisher(tripod=tripod, jobs=jobs, event_bus=event_bus)
-
+    """Factory to create the FastAPI application instance."""
+    
+    bus = EventBus()
+    container = AppContainer(camera=camera, tripod=tripod, bus=bus)
+    
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        if camera_adapter is not None:
-            await camera_adapter.open()
-        if tripod is not None:
-            await tripod.open()
-        tripod_polling.start()
-        try:
-            yield
-        finally:
-            await tripod_polling.stop()
-            if tripod is not None:
-                with contextlib.suppress(Exception):
-                    await tripod.close()
-            if camera_adapter is not None:
-                with contextlib.suppress(Exception):
-                    await camera_adapter.close()
+        # Connect hardware
+        if container.camera:
+            await container.camera.open()
+        if container.tripod:
+            await container.tripod.open()
+        
+        yield
+        
+        # Cleanup hardware
+        if container.camera:
+            await container.camera.close()
+        if container.tripod:
+            await container.tripod.close()
 
     app = FastAPI(
-        title="CameraCommander2 Host API",
-        version="1.0.0",
-        lifespan=lifespan,
+        title="CameraCommander2",
+        version="0.1.0",
+        lifespan=lifespan
     )
-    app.state.container = AppContainer(
-        event_bus=event_bus,
-        camera=camera_adapter,
-        tripod=tripod,
-        calibration=calibration,
-        jobs=jobs,
-        sessions=sessions,
-        post_process=post_process,
-        safety=SafetyService(tilt_min_deg=-90.0, tilt_max_deg=90.0),
-        camera_captures={},
-        tripod_polling=tripod_polling,
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
-
-    app.include_router(camera_router)
-    app.include_router(events_router)
-    app.include_router(health_router)
-    app.include_router(jobs_router)
-    app.include_router(tripod_router)
-    app.include_router(sessions_router)
-
-    if serve_static:
-        dist = _resolve_web_dist()
-        if dist is not None:
-            app.mount("/", StaticFiles(directory=dist, html=True), name="web")
-        else:
-            global _WEB_DIST_WARNING_EMITTED
-            if not _WEB_DIST_WARNING_EMITTED:
-                logger.warning(
-                    "web/dist/ not found alongside host/; serving API only. "
-                    "Build the SPA with `cd web && npm ci && npm run build`."
-                )
-                _WEB_DIST_WARNING_EMITTED = True
-
+    
+    # Mount routers (Phases 3-6)
+    # Routes mounted below(camera_router, prefix="/api/camera", tags=["camera"])
+    from .routes import health, jobs
+    app.include_router(health.router, prefix="/api", tags=["health"])
+    app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
+    from .routes import camera, tripod
+    app.include_router(camera.router, prefix="/api/camera", tags=["camera"])
+    app.include_router(tripod.router, prefix="/api/tripod", tags=["tripod"])
+    from .routes import sessions
+    app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
+    
+    # Static files (Web SPA)
+    web_dist = Path(__file__).parents[4] / "web" / "dist"
+    if web_dist.exists():
+        app.mount("/", StaticFiles(directory=web_dist, html=True), name="static")
+    
     return app
 
 

@@ -1,43 +1,28 @@
-"""Software-only calibration state tracking."""
+"""Calibration and homing state management."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-from ..api.websocket import EventBus
-from ..core.models import CalibrationStateValue, CalibrationStatus
+from datetime import datetime
+from ..core.models import CalibrationValue
 
 
 class CalibrationService:
-    def __init__(self, event_bus: EventBus | None = None) -> None:
-        self._status = CalibrationStatus()
-        self._event_bus = event_bus
+    def __init__(self, bus: Any = None) -> None:
+        self._bus = bus
+        self._state = CalibrationValue.unknown
+        self._last_home_at: datetime | None = None
 
     @property
-    def status(self) -> CalibrationStatus:
-        return self._status
+    def state(self) -> CalibrationValue:
+        return self._state
 
-    @property
-    def is_homed(self) -> bool:
-        return self._status.state == CalibrationStateValue.homed
+    def mark_homed(self) -> None:
+        self._state = CalibrationValue.homed
+        self._last_home_at = datetime.now()
+        if self._bus:
+            asyncio.create_task(self._bus.publish("hardware.calibration", {"state": "homed"}))
 
-    def mark_homed(self) -> CalibrationStatus:
-        self._status = CalibrationStatus(
-            state=CalibrationStateValue.homed,
-            set_at=datetime.now(tz=UTC),
-        )
-        return self._status
-
-    def mark_unknown(self, reason: str = "") -> CalibrationStatus:
-        self._status = CalibrationStatus(state=CalibrationStateValue.unknown)
-        return self._status
-
-    async def publish(self) -> None:
-        if self._event_bus is not None:
-            await self._event_bus.publish(
-                "hardware.calibration",
-                self._status.model_dump(mode="json"),
-            )
-
-
-__all__ = ["CalibrationService"]
+    def mark_unknown(self, reason: str | None = None) -> None:
+        self._state = CalibrationValue.unknown
+        if self._bus:
+            asyncio.create_task(self._bus.publish("hardware.calibration", {"state": "unknown", "reason": reason}))

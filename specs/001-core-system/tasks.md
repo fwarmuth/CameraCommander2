@@ -27,7 +27,7 @@ description: "Task list for CameraCommander2 — Core System"
 - [X] T001 Create top-level component directories `firmware/`, `host/`, `web/` and per-component `README.md` stubs at `firmware/README.md`, `host/README.md`, `web/README.md`
 - [X] T002 [P] Create `host/pyproject.toml` declaring Python 3.12, the runtime deps from plan.md (fastapi, uvicorn[standard], pydantic v2, typer, pyyaml, pyserial, gphoto2, pillow, piexif, loguru), dev deps (pytest, pytest-asyncio, httpx, ruff, mypy), and the `cameracommander` console-script entry point
 - [X] T003 [P] Create `firmware/platformio.ini` with `[env:nodemcuv2]` (ESP8266, default) and `[env:esp32]` environments, `lib_deps = waspinator/AccelStepper@^1.64`, framework=arduino, build flags for C++17
-- [X] T004 [P] Create `web/package.json`, `web/vite.config.ts`, `web/tsconfig.json`, `web/svelte.config.js`, `web/tailwind.config.js`, `web/postcss.config.js` for Svelte 4 + Vite + TypeScript + Tailwind, with scripts `build`, `dev`, `test` (vitest)
+- [X] T004 [P] Create `web/package.json`, `web/vite.config.ts`, `web/tsconfig.json`, `web/svelte.config.js`, `web/tailwind.config.js`, `web/postcss.config.js` for Svelte 5 + Vite + TypeScript + Tailwind, with scripts `build`, `dev`, `test` (vitest)
 - [X] T005 [P] Configure linting/formatting: `host/ruff.toml` and `host/mypy.ini` for Python; `web/.eslintrc.cjs`, `web/.prettierrc` for the SPA; root `.editorconfig`
 - [X] T006 [P] Add `host/.gitignore` and `web/.gitignore` covering `.venv/`, `__pycache__/`, `node_modules/`, `dist/`, `*.egg-info`, `~/.cameracommander/` artefacts under repo
 
@@ -45,7 +45,6 @@ description: "Task list for CameraCommander2 — Core System"
 - [X] T008 [P] Implement Pydantic v2 models for `Configuration`, `ConfigurationMetadata`, `CameraConfig`, `TripodConfig` (with nested `serial`), `SafetyConfig`, `OutputConfig` (with nested `video`), and the discriminated `TimelapseSequenceConfig | VideoPanSequenceConfig` union per data-model.md §1 in `host/src/cameracommander/core/config.py`. Include validators: tilt-window covers all keyframes (FR-009), `settle_time_s ≤ interval_s` (FR-017), `frame_filename_template` contains `{index:04d}` (FR-043), `video.fps` required when `video.assemble` (FR-022), `total_frames ≥ 2` (FR-015)
 - [X] T009 [P] Implement Pydantic models for `Job`, `JobStatus` enum, `JobProgress`, `FaultEvent`, `Session`, `SessionSummary`, `SessionAsset`, `HardwareConnection`, `CameraStatus`, `TripodStatus`, `CalibrationState` per data-model.md §2–§5 in `host/src/cameracommander/core/models.py`
 - [X] T010 [P] Implement YAML loader/dumper that round-trips a `Configuration` (UTF-8, block style, `created_at` defaulted on parse) in `host/src/cameracommander/core/config.py` (extend the same module)
-- [X] T097 [P] Implement `HostConfig` Pydantic model and `load_host_configuration` loader for persistent deployment-specific settings (SC-007) in `host/src/cameracommander/core/config.py`
 
 ### Hardware abstraction protocols
 
@@ -99,7 +98,7 @@ description: "Task list for CameraCommander2 — Core System"
 #### Services
 
 - [X] T030 [US1] Implement `SafetyService` (`guard_move(pan, tilt)` raises `MotionLimitError` outside tilt window; `validate_sequence(config)` for keyframes + interpolated frames; pure functions for unit testing) in `host/src/cameracommander/services/safety.py` (depends on T008, T030)
-- [X] T031 [US1] Implement `CalibrationService` (`state` property, `mark_homed()` after `POST /api/tripod/home`, `mark_unknown(reason)` on driver disable / fault / boot, publishes `hardware.calibration` event via T017) in `host/src/cameracommander/services/calibration.py`
+- [X] T031 [US1] Implement `CalibrationService` (`state` property, defaults to `unknown` on init (FR-051), `mark_homed()` after `POST /api/tripod/home`, `mark_unknown(reason)` on driver disable / fault / boot, publishes `hardware.calibration` event via T017) in `host/src/cameracommander/services/calibration.py`
 - [X] T032 [US1] Implement `DiskGuard` (pre-flight estimate, `assert_room_for_next_frame(frames_remaining, running_avg_bytes)`, threshold `max(estimate, disk_min_free_bytes)`) in `host/src/cameracommander/services/disk.py`
 - [X] T033 [US1] Implement `SessionRepository` (filesystem under `~/.cameracommander/sessions/<id>/`, writes `metadata.json` + `config.yaml`, frame asset registration, list/get/delete) in `host/src/cameracommander/persistence/sessions_fs.py` and the thin service wrapper `host/src/cameracommander/services/sessions.py`
 - [X] T034 [US1] Implement per-frame metadata writer: try EXIF UserComment via piexif; on failure append a row to `frames/metadata.csv` (timestamp, index, pan, tilt, settings hash); strategy `auto|exif|csv` from `OutputConfig` in `host/src/cameracommander/services/metadata.py`
@@ -158,13 +157,11 @@ description: "Task list for CameraCommander2 — Core System"
 
 - [X] T060 [P] [US2] Implement `GET /api/camera/settings` and `PUT /api/camera/settings` (delegates to `CameraAdapter.query_settings`/`apply_settings`, maps validation errors to 400, disconnect to 503) in `host/src/cameracommander/api/routes/camera.py`
 - [X] T061 [P] [US2] Implement `POST /api/camera/capture` and `GET /api/camera/captures/{capture_id}` (one-shot capture stored in a TTL-keyed in-memory cache + temp file; optional `save_to_session`) in `host/src/cameracommander/api/routes/camera.py`
-- [X] T062 [P] [US2] Implement `GET /api/camera/preview` (single JPEG) and `GET /api/camera/preview/stream` (MJPEG `multipart/x-mixed-replace; boundary=frame`, 5 fps cap) in `host/src/cameracommander/api/routes/camera.py`
+- [X] T062 [P] [US2] Implement `GET /api/camera/preview` (single JPEG) and `GET /api/camera/preview/stream` (MJPEG `multipart/x-mixed-replace; boundary=frame`, 5 fps cap, research §R004 lock integrated) in `host/src/cameracommander/api/routes/camera.py`
 - [X] T063 [P] [US2] Implement `GET /api/tripod/status`, `POST /api/tripod/move`, `POST /api/tripod/nudge`, `POST /api/tripod/stop`, `PUT /api/tripod/drivers` — all guarded by `SafetyService` and the active-job lock; `move` requires `homed` calibration but `nudge` is allowed under `unknown` (with a logged warning per cli-commands.md) in `host/src/cameracommander/api/routes/tripod.py`
 - [X] T064 [P] [US2] Implement `cameracommander snapshot` CLI (lazy gphoto2 import, `--model-substring`, `--no-autofocus`, exit codes 0/2/10/11) in `host/src/cameracommander/cli/commands/snapshot.py`
 - [X] T065 [P] [US2] Implement `cameracommander tripod` REPL CLI (relative `<pan> <tilt>`, `to <pan> <tilt>`, `home`, `e`/`d`, `s`, `stop`, `q`) in `host/src/cameracommander/cli/commands/tripod.py`
-- [X] T066 [US2] Implement LiveControl view: camera-settings panel (settings table from `/api/camera/settings`, edit + apply), MJPEG `<img src="/api/camera/preview/stream">`, **Test capture** button, **Nudge** controls (pan/tilt buttons with safety-aware enable state), connection-fault banner that disables capture when camera/tripod state is `error` or `disconnected`, in `web/src/views/LiveControl.svelte`
-- [X] T095 [US2] Update `LiveControl` view to use tabbed settings navigation grouped by prefix (FR-047)
-- [X] T096 [US2] Add a "Planning" summary tab to `LiveControl` settings highlighting ISO, shutter speed, aperture, and WB (FR-048)
+- [X] T066 [US2] Implement LiveControl view: camera-settings panel (settings table with tabbed navigation per FR-047/FR-048, edit + apply), MJPEG `<img src="/api/camera/preview/stream">`, **Test capture** button, **Nudge** controls (pan/tilt buttons with safety-aware enable state), connection-fault banner that disables capture when camera/tripod state is `error` or `disconnected`, in `web/src/views/LiveControl.svelte`
 - [X] T067 [US2] Add periodic `tripod.position` event publication (≤1 Hz idle, ≤4 Hz during a job per host-events.asyncapi.yaml) in `host/src/cameracommander/services/tripod_polling.py` and wire into `AppContainer` lifespan
 
 **Checkpoint**: User Stories 1 AND 2 both work independently. Operator can prep a shoot end-to-end via UI or CLI.
@@ -210,6 +207,7 @@ description: "Task list for CameraCommander2 — Core System"
 - [X] T077 [P] [US4] Implement `GET /api/sessions/{id}/assets/{asset_path}` with safe path resolution (no traversal outside session dir) in `host/src/cameracommander/api/routes/sessions.py`
 - [X] T078 [US4] Implement Library view: paginated table (newest first, badges for flags `cadence_warning`/`partial_due_to_disk`/`fault`), session detail drawer with embedded config viewer, **Reload settings** that navigates to Planner with the config pre-loaded (URL param or store hand-off), **Assemble video** button wired to `POST .../assemble`, in `web/src/views/Library.svelte`
 - [X] T079 [P] [US4] Bridge Library→Planner reload: extend the Planner form (T051) to accept an initial `Configuration` (from store or query param) and prefill fields without hitting the server again
+- [X] T095 [US4] Implement automatic session cleanup policy (FR-050) in `SessionRepository`: delete oldest entries when disk space drops below 100MB critical threshold (research §R003)
 
 **Checkpoint**: Spec User Stories 1–4 are independently usable.
 
@@ -241,7 +239,7 @@ description: "Task list for CameraCommander2 — Core System"
 
 **Purpose**: Production readiness on the Pi Zero 2 W deployment target and final spec/SC validation.
 
-- [ ] T086 [P] Validate the Pi Zero 2 W resource budget: idle RSS ≤ 200 MB, in-job RSS ≤ 280 MB; record measurements in `specs/001-core-system/notes/pi-zero-rss.md` (run on a real Pi or `qemu-system-aarch64` if necessary)
+- [X] T086 [P] Validate the Pi Zero 2 W resource budget: idle RSS ≤ 200 MB, in-job RSS ≤ 280 MB; record measurements in `specs/001-core-system/notes/pi-zero-rss.md` (run on a real Pi or `qemu-system-aarch64` if necessary)
 - [X] T087 [P] Add `firmware/test/test_safety_clamp.cpp` covering the build-time mechanical tilt clamp from T056
 - [X] T088 [P] Author top-level `README.md` summarising components, links to spec/plan/quickstart, and reproducing the quickstart §2 commands verbatim
 - [X] T089 [P] Author `web/README.md` covering the off-device build (`npm ci && npm run build`) and the deploy-as-static-bundle expectation
@@ -324,7 +322,7 @@ Task: "T029 Implement SerialTripodAdapter — host/src/cameracommander/hardware/
 
 ### Parallel Team Strategy
 
-After Phase 2 lands:
+After Phase 1+2 land:
 
 - Developer A: US1 host-side (T028–T046, T053–T057)
 - Developer B: US1 web-side (T047–T052), then US4 (T078–T079)
@@ -339,5 +337,8 @@ After Phase 2 lands:
 - [Story] label maps each task to its user story for traceability against `spec.md`.
 - All FR / SC references are inline against the relevant tasks.
 - Calibration must be `homed` before any automated job (FR-041); `cameracommander tripod`, `POST /api/tripod/nudge`, and the LiveControl manual nudge are the only motion paths allowed under `unknown` calibration.
+- Calibration state resets to `unknown` on application restart (FR-051) for hardware safety.
 - The single-job lock is enforced in `JobManager` (T036); every endpoint that takes the hardware (`/api/camera/capture`, `/api/tripod/move`, `/api/tripod/nudge`, `/api/tripod/drivers`, both `/api/jobs/*`, `/api/sessions/{id}/assemble`) consults it.
+- Video assembly is sequential and shares the same global lock as jobs; it is disabled by default to preserve resources (FR-022, FR-039).
 - The Pi Zero 2 W resource budget (≤ 200 MB idle / ≤ 280 MB during a job) is the binding deployment constraint — re-check after each story lands.
+- Svelte 5 is used for the web UI; follow rune-based patterns ($state, $derived, $effect).

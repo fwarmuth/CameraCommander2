@@ -1,48 +1,35 @@
-"""Time-modeled motion simulator for the mock firmware.
-
-The real ESP firmware blocks during a move until both axes settle. The mock
-needs the same behaviour so host-side timing logic (capture cadence, stall
-margin) is exercised against realistic latencies. The model is intentionally
-simple: constant angular speed (degrees per second) plus a fixed settle delay.
-"""
+"""Time-mode-based motion simulation."""
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 
-@dataclass(slots=True)
+@dataclass
+class MotionState:
+    pan: float = 0.0
+    tilt: float = 0.0
+    drivers_enabled: bool = False
+    microstep: int = 16
+    deg_per_second: float = 10.0
+
+
 class MotionModel:
-    """Tracks current pan/tilt and computes the time a move would take."""
+    """Predicts DONE timing and manages virtual position."""
 
-    pan_deg: float = 0.0
-    tilt_deg: float = 0.0
-    deg_per_second: float = 60.0
-    settle_delay_s: float = 0.25
-    drivers_enabled: bool = True
+    def __init__(self, state: MotionState) -> None:
+        self.state = state
+        self._lock = asyncio.Lock()
 
-    def expected_move_duration_s(self, target_pan_deg: float, target_tilt_deg: float) -> float:
-        """Return the synthetic time a ``move_to`` should block for."""
-
-        if self.deg_per_second <= 0:
-            return 0.0
-        delta = max(
-            abs(target_pan_deg - self.pan_deg),
-            abs(target_tilt_deg - self.tilt_deg),
-        )
-        return delta / self.deg_per_second + self.settle_delay_s
-
-    def apply_move(self, target_pan_deg: float, target_tilt_deg: float) -> None:
-        """Commit the new position (called once the simulated wait completes)."""
-
-        self.pan_deg = target_pan_deg
-        self.tilt_deg = target_tilt_deg
-
-    def reset_position(self) -> None:
-        """Driver enable / disable resets the position counter (FR-011)."""
-
-        self.pan_deg = 0.0
-        self.tilt_deg = 0.0
-
-
-__all__ = ["MotionModel"]
+    async def move_to(self, pan: float, tilt: float) -> None:
+        async with self._lock:
+            delta_pan = abs(pan - self.state.pan)
+            delta_tilt = abs(tilt - self.state.tilt)
+            max_delta = max(delta_pan, delta_tilt)
+            
+            duration = max_delta / self.state.deg_per_second
+            await asyncio.sleep(duration)
+            
+            self.state.pan = pan
+            self.state.tilt = tilt
