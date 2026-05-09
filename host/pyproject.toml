@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "cameracommander"
 version = "0.1.0"
@@ -20,8 +24,8 @@ dependencies = [
 [project.scripts]
 cameracommander = "cameracommander.cli.main:app"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.2.2",
     "pytest-asyncio>=0.23.7",
     "httpx>=0.27.0",
