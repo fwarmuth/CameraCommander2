@@ -142,14 +142,15 @@ Finally, move the "Brain" (the Python host) to your Raspberry Pi.
     ```
 
 2.  **Deploy from Laptop to Pi:**
-    Use `rsync` to push the code and the pre-built web bundle.
-    ```bash
+    Use \`rsync\` to push the code and the pre-built web bundle.
+    \`\`\`bash
     # Run this from your LAPTOP root directory
-    rsync -avz --delete \
-      --exclude '.venv' --exclude 'node_modules' \
-      ./host/ ./web/dist \
+    rsync -avz --delete \\
+      --exclude '.venv' --exclude 'node_modules' --exclude '.git' --exclude '.pio' \\
+      ./host/ ./web/dist \\
       pi@cameracmd.local:/opt/cameracommander/
-    ```
+    \`\`\`
+
 
 3.  **Configure on Pi:**
     Create a config file at `~/.cameracommander/host.yaml`:
