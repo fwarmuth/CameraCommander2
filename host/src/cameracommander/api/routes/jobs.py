@@ -3,9 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
-from ...core.config import Configuration, TimelapseSequenceConfig
-from ...core.errors import CalibrationRequiredError, JobAlreadyRunningError
+from ...core.config import Configuration, TimelapseSequenceConfig, VideoPanSequenceConfig
+from ...core.errors import CalibrationRequiredError, JobAlreadyRunningError, MotionLimitError
 from ...core.models import Job
+from ...services.safety import SafetyService
 from ..deps import get_container
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -27,6 +28,37 @@ async def post_timelapse_job(request: Request, config: Configuration) -> Job:
     jobs = get_container(request).jobs
     try:
         return await jobs.start("timelapse", config)
+    except CalibrationRequiredError as exc:
+        return JSONResponse(
+            _error(exc.code, exc.message, **exc.details),
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+        )
+    except JobAlreadyRunningError as exc:
+        return JSONResponse(
+            _error(exc.code, exc.message, **exc.details),
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+
+@router.post(
+    "/video-pan",
+    operation_id="postVideoPanJob",
+    response_model=Job,
+    status_code=status.HTTP_201_CREATED,
+)
+async def post_video_pan_job(request: Request, config: Configuration) -> Job:
+    if not isinstance(config.sequence, VideoPanSequenceConfig):
+        raise HTTPException(400, _error("config_invalid", "configuration is not video_pan"))
+    try:
+        SafetyService.from_config(config).validate_sequence(config)
+    except MotionLimitError as exc:
+        return JSONResponse(
+            _error(exc.code, exc.message, **exc.details),
+            status_code=422,
+        )
+    jobs = get_container(request).jobs
+    try:
+        return await jobs.start("video_pan", config)
     except CalibrationRequiredError as exc:
         return JSONResponse(
             _error(exc.code, exc.message, **exc.details),

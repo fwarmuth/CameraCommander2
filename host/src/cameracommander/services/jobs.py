@@ -17,6 +17,7 @@ from ..persistence.sessions_fs import SessionRepository
 from .calibration import CalibrationService
 from .post_process import VideoAssembler
 from .timelapse import TimelapseRunner
+from .video_pan import VideoPanRunner
 
 
 class JobManager:
@@ -119,7 +120,17 @@ class JobManager:
                     publish_progress=self._publish_job,
                 )
             else:
-                raise NotImplementedError("video_pan runner not implemented yet")
+                runner = VideoPanRunner(
+                    camera=self.camera,
+                    tripod=self.tripod,
+                    sessions=self.sessions,
+                )
+                await runner.run(
+                    job=job,
+                    config=config,
+                    stop_requested=stop_event,
+                    publish_progress=self._publish_job,
+                )
         except Exception as exc:
             job.status = JobStatus.failed
             job.fault = FaultEvent(

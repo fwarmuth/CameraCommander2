@@ -3,6 +3,9 @@
   import type { Configuration } from "../lib/api/types";
   import { activeJob, calibration, refreshStatus } from "../lib/stores";
 
+  type PlannerMode = "timelapse" | "video_pan";
+
+  let mode: PlannerMode = "timelapse";
   let name = "Mock timelapse";
   let iso = 400;
   let shutter = "1/125";
@@ -11,6 +14,7 @@
   let totalFrames = 24;
   let intervalS = 5;
   let settleS = 0.5;
+  let durationS = 30;
   let startPan = 0;
   let startTilt = 0;
   let targetPan = 30;
@@ -61,14 +65,22 @@
         metadata_strategy: "auto",
         video: { assemble: assembleVideo, fps: videoFps, format: "mp4-h264" },
       },
-      sequence: {
-        kind: "timelapse",
-        total_frames: totalFrames,
-        interval_s: intervalS,
-        settle_time_s: settleS,
-        start: { pan_deg: startPan, tilt_deg: startTilt },
-        target: { pan_deg: targetPan, tilt_deg: targetTilt },
-      },
+      sequence:
+        mode === "timelapse"
+          ? {
+              kind: "timelapse",
+              total_frames: totalFrames,
+              interval_s: intervalS,
+              settle_time_s: settleS,
+              start: { pan_deg: startPan, tilt_deg: startTilt },
+              target: { pan_deg: targetPan, tilt_deg: targetTilt },
+            }
+          : {
+              kind: "video_pan",
+              duration_s: durationS,
+              start: { pan_deg: startPan, tilt_deg: startTilt },
+              target: { pan_deg: targetPan, tilt_deg: targetTilt },
+            },
     };
   }
 
@@ -88,7 +100,8 @@
   async function launch(): Promise<void> {
     busy = true;
     try {
-      const job = await api.startTimelapse(config());
+      const job =
+        mode === "timelapse" ? await api.startTimelapse(config()) : await api.startVideoPan(config());
       activeJob.set(job);
       status = `Launched ${job.job_id}`;
     } catch (error) {
@@ -103,7 +116,24 @@
   <form class="grid gap-5 rounded-3xl bg-white p-5 shadow-sm" on:submit|preventDefault={launch}>
     <div>
       <p class="text-xs font-bold uppercase tracking-[0.35em] text-amber-700">Planner</p>
-      <h2 class="text-2xl font-black">Timelapse job</h2>
+      <h2 class="text-2xl font-black">{mode === "timelapse" ? "Timelapse job" : "Video pan job"}</h2>
+    </div>
+
+    <div class="flex flex-wrap gap-2 rounded-2xl bg-stone-100 p-2">
+      <button
+        class={`rounded-full px-4 py-2 font-black ${mode === "timelapse" ? "bg-stone-900 text-white" : "bg-white text-stone-700"}`}
+        type="button"
+        on:click={() => (mode = "timelapse")}
+      >
+        Timelapse
+      </button>
+      <button
+        class={`rounded-full px-4 py-2 font-black ${mode === "video_pan" ? "bg-stone-900 text-white" : "bg-white text-stone-700"}`}
+        type="button"
+        on:click={() => (mode = "video_pan")}
+      >
+        Video Pan
+      </button>
     </div>
 
     <label class="grid gap-1">
@@ -117,11 +147,18 @@
       <label class="grid gap-1"><span class="font-bold">Aperture</span><input class="rounded-xl border p-3" type="number" step="0.1" bind:value={aperture} /></label>
     </div>
 
-    <div class="grid gap-4 md:grid-cols-3">
-      <label class="grid gap-1"><span class="font-bold">Frames</span><input class="rounded-xl border p-3" type="number" min="2" bind:value={totalFrames} /></label>
-      <label class="grid gap-1"><span class="font-bold">Interval s</span><input class="rounded-xl border p-3" type="number" step="0.1" bind:value={intervalS} /></label>
-      <label class="grid gap-1"><span class="font-bold">Settle s</span><input class="rounded-xl border p-3" type="number" step="0.1" bind:value={settleS} /></label>
-    </div>
+    {#if mode === "timelapse"}
+      <div class="grid gap-4 md:grid-cols-3">
+        <label class="grid gap-1"><span class="font-bold">Frames</span><input class="rounded-xl border p-3" type="number" min="2" bind:value={totalFrames} /></label>
+        <label class="grid gap-1"><span class="font-bold">Interval s</span><input class="rounded-xl border p-3" type="number" step="0.1" bind:value={intervalS} /></label>
+        <label class="grid gap-1"><span class="font-bold">Settle s</span><input class="rounded-xl border p-3" type="number" step="0.1" bind:value={settleS} /></label>
+      </div>
+    {:else}
+      <label class="grid gap-1 md:max-w-xs">
+        <span class="font-bold">Duration s</span>
+        <input class="rounded-xl border p-3" type="number" min="0.1" step="0.1" bind:value={durationS} />
+      </label>
+    {/if}
 
     <div class="grid gap-4 md:grid-cols-4">
       <label class="grid gap-1"><span class="font-bold">Start pan</span><input class="rounded-xl border p-3" type="number" bind:value={startPan} /></label>
@@ -136,14 +173,18 @@
       <label class="grid gap-1"><span class="font-bold">Output dir</span><input class="rounded-xl border p-3" bind:value={outputDir} /></label>
     </div>
 
-    <div class="flex flex-wrap items-center gap-4">
-      <label class="flex items-center gap-2 font-bold"><input type="checkbox" bind:checked={assembleVideo} /> Assemble video</label>
-      <label class="flex items-center gap-2 font-bold">FPS <input class="w-24 rounded-xl border p-2" type="number" min="1" bind:value={videoFps} /></label>
-    </div>
+    {#if mode === "timelapse"}
+      <div class="flex flex-wrap items-center gap-4">
+        <label class="flex items-center gap-2 font-bold"><input type="checkbox" bind:checked={assembleVideo} /> Assemble video</label>
+        <label class="flex items-center gap-2 font-bold">FPS <input class="w-24 rounded-xl border p-2" type="number" min="1" bind:value={videoFps} /></label>
+      </div>
+    {/if}
 
     <div class="flex flex-wrap gap-3">
       <button class="rounded-full bg-stone-900 px-5 py-3 font-black text-white disabled:opacity-50" type="button" disabled={busy} on:click={setHome}>Set as home</button>
-      <button class="rounded-full bg-amber-500 px-5 py-3 font-black text-stone-950 disabled:opacity-50" disabled={busy || !tiltValid || $calibration !== "homed"}>Launch timelapse</button>
+      <button class="rounded-full bg-amber-500 px-5 py-3 font-black text-stone-950 disabled:opacity-50" disabled={busy || !tiltValid || $calibration !== "homed"}>
+        Launch {mode === "timelapse" ? "timelapse" : "video pan"}
+      </button>
     </div>
   </form>
 

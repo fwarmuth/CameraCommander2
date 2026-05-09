@@ -176,15 +176,15 @@ description: "Task list for CameraCommander2 — Core System"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T068 [P] [US3] Integration test: full mock video pan asserts motion-start vs recording-start delta < 500 ms (User Story 3 acceptance #1), motion completes at `duration_s ± tolerance`, recording stops after motion, in `host/tests/integration/test_full_video_pan_mock.py`
-- [ ] T069 [P] [US3] Contract test: `POST /api/jobs/video-pan` rejects out-of-window tilt with 422; rejects when calibration `unknown` with 412; in `host/tests/contract/test_jobs_video_pan_endpoint.py`
+- [X] T068 [P] [US3] Integration test: full mock video pan asserts motion-start vs recording-start delta < 500 ms (User Story 3 acceptance #1), motion completes at `duration_s ± tolerance`, recording stops after motion, in `host/tests/integration/test_full_video_pan_mock.py`
+- [X] T069 [P] [US3] Contract test: `POST /api/jobs/video-pan` rejects out-of-window tilt with 422; rejects when calibration `unknown` with 412; in `host/tests/contract/test_jobs_video_pan_endpoint.py`
 
 ### Implementation for User Story 3
 
-- [ ] T070 [US3] Implement `VideoPanRunner`: pre-arm camera REC mode → issue `M target` and `start_recording` in the same monotonic instant (≤500 ms drift target) → await motion `DONE` → `stop_recording` → register session with the produced video, with stall-timeout enforcement matching `move_timeout_margin_s`, in `host/src/cameracommander/services/video_pan.py`
-- [ ] T071 [US3] Implement `POST /api/jobs/video-pan` in `host/src/cameracommander/api/routes/jobs.py` (mirrors timelapse error mapping)
-- [ ] T072 [P] [US3] Implement `cameracommander pan` CLI (same option scheme as `timelapse` minus `--no-video`, exit codes 0/2/3/10/11/12/15) in `host/src/cameracommander/cli/commands/pan.py`
-- [ ] T073 [US3] Extend Planner view with a **Video Pan** mode: discriminator-aware form (duration_s instead of frames/interval, no output.video block surfaced), launches `POST /api/jobs/video-pan`, in `web/src/views/Planner.svelte`
+- [X] T070 [US3] Implement `VideoPanRunner`: pre-arm camera REC mode → issue `M target` and `start_recording` in the same monotonic instant (≤500 ms drift target) → await motion `DONE` → `stop_recording` → register session with the produced video, with stall-timeout enforcement matching `move_timeout_margin_s`, in `host/src/cameracommander/services/video_pan.py`
+- [X] T071 [US3] Implement `POST /api/jobs/video-pan` in `host/src/cameracommander/api/routes/jobs.py` (mirrors timelapse error mapping)
+- [X] T072 [P] [US3] Implement `cameracommander pan` CLI (same option scheme as `timelapse` minus `--no-video`, exit codes 0/2/3/10/11/12/15) in `host/src/cameracommander/cli/commands/pan.py`
+- [X] T073 [US3] Extend Planner view with a **Video Pan** mode: discriminator-aware form (duration_s instead of frames/interval, no output.video block surfaced), launches `POST /api/jobs/video-pan`, in `web/src/views/Planner.svelte`
 
 **Checkpoint**: All three execution modes (still capture, timelapse, video pan) are operational.
 
