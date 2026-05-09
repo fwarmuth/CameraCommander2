@@ -32,16 +32,16 @@ class GphotoCameraAdapter:
         try:
             self._context = gp.gp_context_new()
             self._camera = gp.gp_camera_new()
-            
+
             # Detect camera
-            abilities_list = gp.gp_camera_abilities_list_new()
-            gp.check_result(gp.gp_camera_abilities_list_load(abilities_list, self._context))
-            
+            abilities_list = gp.gp_abilities_list_new()
+            gp.check_result(gp.gp_abilities_list_load(abilities_list, self._context))
+
             port_info_list = gp.gp_port_info_list_new()
             gp.check_result(gp.gp_port_info_list_load(port_info_list))
-            
+
             camera_list = gp.check_result(gp.gp_camera_autodetect(self._context))
-            
+
             # Match model if requested
             match_index = 0
             if self.model_substring:
@@ -53,20 +53,24 @@ class GphotoCameraAdapter:
                         break
                 if not found:
                     raise CameraError(f"No camera found matching '{self.model_substring}'")
-            
+
             model, addr = camera_list[match_index]
             self._model = model
             self._port_path = addr
-            
+
             # Initialize
-            idx = gp.check_result(gp.gp_camera_abilities_list_lookup_model(abilities_list, model))
-            abilities = gp.check_result(gp.gp_camera_abilities_list_get_abilities(abilities_list, idx))
+            idx = gp.check_result(gp.gp_abilities_list_lookup_model(abilities_list, model))
+            abilities = gp.check_result(
+                gp.gp_abilities_list_get_abilities(abilities_list, idx)
+            )
             gp.check_result(gp.gp_camera_set_abilities(self._camera, abilities))
-            
+
             p_idx = gp.check_result(gp.gp_port_info_list_lookup_path(port_info_list, addr))
-            port_info = gp.check_result(gp.gp_port_info_list_get_info(port_info_list, p_idx))
+            port_info = gp.check_result(
+                gp.gp_port_info_list_get_info(port_info_list, p_idx)
+            )
             gp.check_result(gp.gp_camera_set_port_info(self._camera, port_info))
-            
+
             gp.check_result(gp.gp_camera_init(self._camera, self._context))
         except Exception as e:
             self._last_error = str(e)
@@ -83,7 +87,9 @@ class GphotoCameraAdapter:
 
     async def status(self) -> CameraStatus:
         # Read-only state, no lock needed
-        state = CameraState.connected if self._camera is not None else CameraState.disconnected
+        state = (
+            CameraState.connected if self._camera is not None else CameraState.disconnected
+        )
         return CameraStatus(state=state, model=self._model, last_error=self._last_error)
 
     async def query_settings(self) -> dict[str, SettingDescriptor]:
@@ -108,12 +114,13 @@ class GphotoCameraAdapter:
     def _capture_blocking(self, autofocus: bool) -> CaptureResult:
         from datetime import datetime
         import uuid
+
         return CaptureResult(
             capture_id=str(uuid.uuid4()),
             content_type="image/jpeg",
             captured_at=datetime.now(),
             size_bytes=0,
-            download_url=""
+            download_url="",
         )
 
     async def start_recording(self) -> None:
@@ -128,7 +135,9 @@ class GphotoCameraAdapter:
 
     def _preview_blocking(self) -> bytes:
         camera_file = gp.check_result(gp.gp_file_new())
-        gp.check_result(gp.gp_camera_capture_preview(self._camera, camera_file, self._context))
+        gp.check_result(
+            gp.gp_camera_capture_preview(self._camera, camera_file, self._context)
+        )
         return bytes(gp.check_result(gp.gp_file_get_data_and_size(camera_file)))
 
     async def preview_stream(self) -> AsyncIterator[bytes]:
@@ -136,6 +145,7 @@ class GphotoCameraAdapter:
             while True:
                 yield await self.preview_frame_jpeg()
                 await asyncio.sleep(0.2)
+
         return _stream()
 
 
