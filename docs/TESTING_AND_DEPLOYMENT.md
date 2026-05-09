@@ -108,6 +108,7 @@ Now, connect your ESP board (ESP8266 or ESP32) to your laptop to flash it and pe
     output:
       output_dir: "./output"
     sequence:
+      kind: "timelapse"  # <-- Added this line
       total_frames: 2
       interval_s: 1
       settle_time_s: 0
