@@ -21,7 +21,7 @@ router = APIRouter()
 
 @router.websocket("/ws/events")
 async def events_socket(websocket: WebSocket) -> None:
-    bus = get_event_bus(websocket.app)
+    bus = get_event_bus(websocket)
     await websocket.accept()
     sub = Subscriber()
     await bus.register(sub)
