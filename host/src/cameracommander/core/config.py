@@ -182,6 +182,18 @@ SequenceConfig = Annotated[
 # --- Configuration root ----------------------------------------------------
 
 
+class HostConfig(BaseModel):
+    """Host-level persistent configuration (usually ~/.cameracommander/host.yaml)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    camera: CameraConfig = Field(default_factory=CameraConfig)
+    tripod: TripodConfig | None = None
+    session_library_root: Path = Field(
+        default_factory=lambda: Path.home() / ".cameracommander" / "sessions"
+    )
+
+
 class Configuration(BaseModel):
     """Full, validated session configuration (FR-026)."""
 
@@ -220,6 +232,29 @@ class Configuration(BaseModel):
 
 
 # --- YAML loader / dumper --------------------------------------------------
+
+
+def load_host_configuration(source: str | Path) -> HostConfig:
+    """Parse a YAML file or YAML string and return a validated ``HostConfig``.
+
+    Wraps Pydantic ``ValidationError`` in :class:`ConfigError` so callers across
+    the host can catch a single domain exception.
+    """
+
+    if isinstance(source, Path) or (isinstance(source, str) and "\n" not in source and Path(source).exists()):
+        text = Path(source).read_text(encoding="utf-8")
+    else:
+        text = source
+    try:
+        raw = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"YAML parse error: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ConfigError("Configuration root must be a YAML mapping")
+    try:
+        return HostConfig.model_validate(raw)
+    except Exception as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def load_configuration(source: str | Path) -> Configuration:
@@ -261,6 +296,7 @@ __all__ = [
     "CameraConfig",
     "Configuration",
     "ConfigurationMetadata",
+    "HostConfig",
     "OutputConfig",
     "SafetyConfig",
     "SequenceConfig",
@@ -271,4 +307,5 @@ __all__ = [
     "VideoPanSequenceConfig",
     "dump_configuration",
     "load_configuration",
+    "load_host_configuration",
 ]

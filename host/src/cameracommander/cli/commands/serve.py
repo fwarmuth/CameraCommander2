@@ -10,14 +10,18 @@ import uvicorn
 
 from cameracommander.api.app import create_app
 from cameracommander.core.config import (
+    Angles,
     CameraConfig,
     Configuration,
     ConfigurationMetadata,
+    HostConfig,
     OutputConfig,
     SafetyConfig,
     TimelapseSequenceConfig,
     TripodConfig,
+    load_host_configuration,
 )
+from cameracommander.hardware.camera.gphoto import GphotoCameraAdapter
 from cameracommander.hardware.camera.mock import MockCameraAdapter
 from cameracommander.hardware.tripod.serial_adapter import SerialTripodAdapter
 from cameracommander.mock_firmware.server import MockFirmwareConfig, MockFirmwareServer
@@ -35,18 +39,36 @@ def command(
     mock_tripod: Annotated[bool, typer.Option("--mock-tripod")] = False,
     reload: Annotated[bool, typer.Option("--reload", help="Enable uvicorn reload.")] = False,
 ) -> None:
-    _ = config
+    host_config = None
+    if config:
+        host_config = load_host_configuration(config)
+    else:
+        default_config = Path.home() / ".cameracommander" / "host.yaml"
+        if default_config.exists():
+            host_config = load_host_configuration(default_config)
+
     tripod = None
+    camera = None
     mock_server = None
+
     if mock or mock_tripod:
         if mock:
             mock_server = _MockFirmwareThread()
             mock_server.start()
         cfg = _minimal_config("socket://127.0.0.1:9999")
         tripod = SerialTripodAdapter(cfg.tripod)
+    elif host_config and host_config.tripod:
+        tripod = SerialTripodAdapter(host_config.tripod)
+
+    if mock or mock_camera:
+        camera = MockCameraAdapter()
+    elif host_config and host_config.camera:
+        camera = GphotoCameraAdapter(model_substring=host_config.camera.model_substring)
+
     app = create_app(
-        camera=MockCameraAdapter() if mock or mock_camera else None,
+        camera=camera,
         tripod=tripod,
+        session_root=host_config.session_library_root if host_config else None,
     )
     try:
         uvicorn.run(app, host=host, port=port, reload=reload, workers=1)
