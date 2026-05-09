@@ -92,7 +92,7 @@ description: "Task list for CameraCommander2 — Core System"
 
 #### Real hardware adapters
 
-- [ ] T028 [P] [US1] Implement `GphotoCameraAdapter` (libgphoto2 binding, capture-no-AF, transfer-to-host, settings query/apply, 5s timeout + 1 reconnect retry per research §15) in `host/src/cameracommander/hardware/camera/gphoto.py`
+- [X] T028 [P] [US1] Implement `GphotoCameraAdapter` (libgphoto2 binding, capture-no-AF, transfer-to-host, settings query/apply, 5s timeout + 1 reconnect retry per research §15) in `host/src/cameracommander/hardware/camera/gphoto.py`
 - [X] T029 [P] [US1] Implement `SerialTripodAdapter` (pyserial; `socket://` URLs supported; banner drain; `V` handshake with major-version gate per SC-008; `_send` + timeout enforcement; reconnect with `reconnect_interval` and `max_retries`) in `host/src/cameracommander/hardware/tripod/serial_adapter.py`
 
 #### Services
@@ -117,26 +117,26 @@ description: "Task list for CameraCommander2 — Core System"
 
 #### CLI
 
-- [ ] T044 [P] [US1] Implement `cameracommander validate` (loads YAML, runs all Pydantic validators + `SafetyService.validate_sequence`, exits 0 or 2; `--json`, `--strict/--no-strict`) in `host/src/cameracommander/cli/commands/validate.py`
-- [ ] T045 [P] [US1] Implement `cameracommander timelapse` (loads config, applies `--no-video`/`--dry-run`/`--mock*` overrides, drives `JobManager` and renders single-line in-place progress, exit codes 0/2/3/9/10/11/12/15) in `host/src/cameracommander/cli/commands/timelapse.py`
-- [ ] T046 [P] [US1] Implement `cameracommander serve` (boots FastAPI via uvicorn, `--mock` aliases, optional `--reload`; serves `web/dist/` if present) in `host/src/cameracommander/cli/commands/serve.py`
+- [X] T044 [P] [US1] Implement `cameracommander validate` (loads YAML, runs all Pydantic validators + `SafetyService.validate_sequence`, exits 0 or 2; `--json`, `--strict/--no-strict`) in `host/src/cameracommander/cli/commands/validate.py`
+- [X] T045 [P] [US1] Implement `cameracommander timelapse` (loads config, applies `--no-video`/`--dry-run`/`--mock*` overrides, drives `JobManager` and renders single-line in-place progress, exit codes 0/2/3/9/10/11/12/15) in `host/src/cameracommander/cli/commands/timelapse.py`
+- [X] T046 [P] [US1] Implement `cameracommander serve` (boots FastAPI via uvicorn, `--mock` aliases, optional `--reload`; serves `web/dist/` if present) in `host/src/cameracommander/cli/commands/serve.py`
 
 #### Web UI (US1-only views)
 
-- [ ] T047 [P] [US1] Generate the typed TypeScript API client from `specs/001-core-system/contracts/host-api.openapi.yaml` into `web/src/lib/api/` with a thin fetch wrapper carrying `JSON.parse` + error mapping
-- [ ] T048 [P] [US1] Implement WebSocket subscription helper (single `/ws/events` connection, topic-based listener API, reconnect with backoff) in `web/src/lib/ws/client.ts`
-- [ ] T049 [P] [US1] Implement Svelte stores (`hardwareStatus`, `activeJob`, `calibration`) in `web/src/lib/stores/index.ts` wired to the WS client
-- [ ] T050 [US1] Implement `web/src/App.svelte` shell with view router (LiveControl/Planner/Monitor/Library tabs) and a top status bar fed by `hardwareStatus` + `calibration` stores; root mounted from `web/src/main.ts`
-- [ ] T051 [US1] Implement Planner view: timelapse form (camera section, tilt-limit-aware angle inputs, frame count/interval/settle, output dir, video toggles), client-side mirror of safety validators, **Set as home** button, **Launch timelapse** call to `POST /api/jobs/timelapse`, in `web/src/views/Planner.svelte`
-- [ ] T052 [US1] Implement Monitor view: live job progress card (frames captured / total, ETA, last position) wired to `job.<id>.progress` + `job.<id>.state` topics, **Stop** button, hardware-status panel in `web/src/views/Monitor.svelte`
+- [X] T047 [P] [US1] Generate the typed TypeScript API client from `specs/001-core-system/contracts/host-api.openapi.yaml` into `web/src/lib/api/` with a thin fetch wrapper carrying `JSON.parse` + error mapping
+- [X] T048 [P] [US1] Implement WebSocket subscription helper (single `/ws/events` connection, topic-based listener API, reconnect with backoff) in `web/src/lib/ws/client.ts`
+- [X] T049 [P] [US1] Implement Svelte stores (`hardwareStatus`, `activeJob`, `calibration`) in `web/src/lib/stores/index.ts` wired to the WS client
+- [X] T050 [US1] Implement `web/src/App.svelte` shell with view router (LiveControl/Planner/Monitor/Library tabs) and a top status bar fed by `hardwareStatus` + `calibration` stores; root mounted from `web/src/main.ts`
+- [X] T051 [US1] Implement Planner view: timelapse form (camera section, tilt-limit-aware angle inputs, frame count/interval/settle, output dir, video toggles), client-side mirror of safety validators, **Set as home** button, **Launch timelapse** call to `POST /api/jobs/timelapse`, in `web/src/views/Planner.svelte`
+- [X] T052 [US1] Implement Monitor view: live job progress card (frames captured / total, ETA, last position) wired to `job.<id>.progress` + `job.<id>.state` topics, **Stop** button, hardware-status panel in `web/src/views/Monitor.svelte`
 
 #### Firmware (US1 minimum)
 
-- [ ] T053 [US1] Author `firmware/src/protocol.h` declaring `FW_VERSION`, command tokens, reply prefixes mirroring `contracts/firmware-protocol.md`
-- [ ] T054 [US1] Port `firmware/src/GearedStepper.h` and `firmware/src/GearedStepper.cpp` from `old_implementation/firmware/` (AccelStepper wrapper + gear-ratio + microstep handling), keep the existing public API
-- [ ] T055 [US1] Implement `firmware/src/main.cpp`: serial-line reader, command dispatcher (`V`, `M`, `S`, `1/2/4/8/6`, `e`, `d`, `X`, `+`, `-`), boot banner, version reply on `V`, position counter zeroed on `e`/`d`, drivers gating motion. Wire `loop()` to AccelStepper run with cooperative yields
-- [ ] T056 [US1] Implement `firmware/src/safety.cpp` with the build-time mechanical tilt clamp (separate from operator-config tilt window which lives host-side per research §17)
-- [ ] T057 [P] [US1] Add PlatformIO native test `firmware/test/test_parser.cpp` covering tokenisation of `M 12.5 -3.0`, `S`, mis-arity rejection (`ERR Syntax`), unknown-token rejection (`ERR Unknown`), and the case-insensitivity rule
+- [X] T053 [US1] Author `firmware/src/protocol.h` declaring `FW_VERSION`, command tokens, reply prefixes mirroring `contracts/firmware-protocol.md`
+- [X] T054 [US1] Port `firmware/src/GearedStepper.h` and `firmware/src/GearedStepper.cpp` from `old_implementation/firmware/` (AccelStepper wrapper + gear-ratio + microstep handling), keep the existing public API
+- [X] T055 [US1] Implement `firmware/src/main.cpp`: serial-line reader, command dispatcher (`V`, `M`, `S`, `1/2/4/8/6`, `e`, `d`, `X`, `+`, `-`), boot banner, version reply on `V`, position counter zeroed on `e`/`d`, drivers gating motion. Wire `loop()` to AccelStepper run with cooperative yields
+- [X] T056 [US1] Implement `firmware/src/safety.cpp` with the build-time mechanical tilt clamp (separate from operator-config tilt window which lives host-side per research §17)
+- [X] T057 [P] [US1] Add PlatformIO native test `firmware/test/test_parser.cpp` covering tokenisation of `M 12.5 -3.0`, `S`, mis-arity rejection (`ERR Syntax`), unknown-token rejection (`ERR Unknown`), and the case-insensitivity rule
 
 **Checkpoint**: User Story 1 fully functional and testable independently. The MVP is shippable once this phase passes.
 

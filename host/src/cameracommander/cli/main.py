@@ -82,36 +82,28 @@ def _root(
         _print_banner()
 
 
+def _missing_command(name: str, module_path: str) -> None:
+    typer.secho(
+        f"command '{name}' not yet implemented (module {module_path} missing)",
+        fg=typer.colors.YELLOW,
+        err=True,
+    )
+    raise typer.Exit(2)
+
+
 def _register_lazy(name: str, module_path: str, attr: str) -> None:
-    """Register a stub that resolves the real command on first invocation."""
+    """Register implemented command modules and placeholders for missing ones."""
 
-    def _proxy(ctx: typer.Context) -> None:  # pragma: no cover - exercised via CLI
-        try:
-            mod = import_module(module_path)
-        except ModuleNotFoundError:
-            typer.secho(
-                f"command '{name}' not yet implemented (module {module_path} missing)",
-                fg=typer.colors.YELLOW,
-                err=True,
-            )
-            raise typer.Exit(2) from None
-        target = getattr(mod, attr, None)
-        if target is None:
-            typer.secho(
-                f"command '{name}' is missing entry point '{attr}'",
-                fg=typer.colors.RED,
-                err=True,
-            )
-            raise typer.Exit(2)
-        ctx.obj = target
-
-    # Typer's lazy registration: wire an empty subcommand that defers to the
-    # real implementation when it is first imported. Until the command modules
-    # land, the proxy raises a clear "not yet implemented" message instead of a
-    # cryptic ImportError.
-    sub = typer.Typer(name=name, help=f"(lazy) {name}", invoke_without_command=True)
-    sub.callback()(_proxy)
-    app.add_typer(sub, name=name)
+    try:
+        mod = import_module(module_path)
+    except ModuleNotFoundError:
+        app.command(name=name)(lambda: _missing_command(name, module_path))
+        return
+    target = getattr(mod, attr, None)
+    if target is None:
+        app.command(name=name)(lambda: _missing_command(name, module_path))
+        return
+    app.command(name=name)(target)
 
 
 for _name, (_mod, _attr) in _LAZY_COMMANDS.items():

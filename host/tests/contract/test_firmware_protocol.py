@@ -10,9 +10,9 @@ from __future__ import annotations
 import pytest
 
 from cameracommander.hardware.tripod.protocol import (
+    LINE_TERMINATOR,
     DoneReply,
     ErrorReply,
-    LINE_TERMINATOR,
     OkReply,
     ProtocolParseError,
     StatusReply,
