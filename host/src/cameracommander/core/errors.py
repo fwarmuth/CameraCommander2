@@ -115,18 +115,18 @@ class MockOnlyError(CameraCommanderError):
 
 
 __all__ = [
-    "CameraCommanderError",
-    "ConfigError",
-    "MotionLimitError",
     "CalibrationRequiredError",
-    "TripodError",
-    "MotorStallError",
-    "SerialLostError",
-    "ProtocolVersionMismatchError",
-    "CameraError",
+    "CameraCommanderError",
     "CameraDisconnectedError",
+    "CameraError",
     "CaptureError",
+    "ConfigError",
     "DiskFullError",
     "JobAlreadyRunningError",
     "MockOnlyError",
+    "MotionLimitError",
+    "MotorStallError",
+    "ProtocolVersionMismatchError",
+    "SerialLostError",
+    "TripodError",
 ]

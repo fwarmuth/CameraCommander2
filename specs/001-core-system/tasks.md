@@ -220,15 +220,15 @@ description: "Task list for CameraCommander2 — Core System"
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T080 [P] [US5] Smoke test: `cameracommander mock-firmware` starts on a free port, accepts a TCP connection, replies to `V` with the expected `VERSION`, processes a basic `M` round-trip honouring `--deg-per-second` (asserting the `DONE` reply latency), in `host/tests/integration/test_mock_firmware_cli.py`
-- [ ] T081 [P] [US5] End-to-end test: `cameracommander serve --mock` boots the API, the API client (T047) lists hardware as `connected (mock)`, a timelapse launched via `POST /api/jobs/timelapse` reaches `completed` and the resulting session is queryable via `GET /api/sessions`, in `host/tests/integration/test_serve_mock_e2e.py`
+- [X] T080 [P] [US5] Smoke test: `cameracommander mock-firmware` starts on a free port, accepts a TCP connection, replies to `V` with the expected `VERSION`, processes a basic `M` round-trip honouring `--deg-per-second` (asserting the `DONE` reply latency), in `host/tests/integration/test_mock_firmware_cli.py`
+- [X] T081 [P] [US5] End-to-end test: `cameracommander serve --mock` boots the API, the API client (T047) lists hardware as `connected (mock)`, a timelapse launched via `POST /api/jobs/timelapse` reaches `completed` and the resulting session is queryable via `GET /api/sessions`, in `host/tests/integration/test_serve_mock_e2e.py`
 
 ### Implementation for User Story 5
 
-- [ ] T082 [P] [US5] Implement `cameracommander mock-firmware` CLI wrapping T019 (all options from cli-commands.md §`mock-firmware`, foreground SIGINT-clean shutdown) in `host/src/cameracommander/cli/commands/mock_firmware.py`
-- [ ] T083 [US5] Wire `--mock`, `--mock-camera`, `--mock-tripod` flags through `serve`, `timelapse`, `pan`, `snapshot` (in their respective T046/T045/T072/T064 commands) so the AppContainer (T015) swaps `MockCameraAdapter` and rewrites `tripod.serial.port` to `socket://127.0.0.1:9999` before adapter open. `--mock` on `serve` additionally spawns the mock firmware server in-process
-- [ ] T084 [P] [US5] Add example mock configurations: `host/examples/timelapse_mock.yaml` and `host/examples/video_pan_mock.yaml` matching `contracts/config-schema.md` defaults adapted for mock paths
-- [ ] T085 [P] [US5] Document the full mock workflow in `host/README.md` and cross-link `quickstart.md §2`
+- [X] T082 [P] [US5] Implement `cameracommander mock-firmware` CLI wrapping T019 (all options from cli-commands.md §`mock-firmware`, foreground SIGINT-clean shutdown) in `host/src/cameracommander/cli/commands/mock_firmware.py`
+- [X] T083 [US5] Wire `--mock`, `--mock-camera`, `--mock-tripod` flags through `serve`, `timelapse`, `pan`, `snapshot` (in their respective T046/T045/T072/T064 commands) so the AppContainer (T015) swaps `MockCameraAdapter` and rewrites `tripod.serial.port` to `socket://127.0.0.1:9999` before adapter open. `--mock` on `serve` additionally spawns the mock firmware server in-process
+- [X] T084 [P] [US5] Add example mock configurations: `host/examples/timelapse_mock.yaml` and `host/examples/video_pan_mock.yaml` matching `contracts/config-schema.md` defaults adapted for mock paths
+- [X] T085 [P] [US5] Document the full mock workflow in `host/README.md` and cross-link `quickstart.md §2`
 
 **Checkpoint**: All five user stories independently functional.
 
@@ -239,14 +239,14 @@ description: "Task list for CameraCommander2 — Core System"
 **Purpose**: Production readiness on the Pi Zero 2 W deployment target and final spec/SC validation.
 
 - [ ] T086 [P] Validate the Pi Zero 2 W resource budget: idle RSS ≤ 200 MB, in-job RSS ≤ 280 MB; record measurements in `specs/001-core-system/notes/pi-zero-rss.md` (run on a real Pi or `qemu-system-aarch64` if necessary)
-- [ ] T087 [P] Add `firmware/test/test_safety_clamp.cpp` covering the build-time mechanical tilt clamp from T056
-- [ ] T088 [P] Author top-level `README.md` summarising components, links to spec/plan/quickstart, and reproducing the quickstart §2 commands verbatim
-- [ ] T089 [P] Author `web/README.md` covering the off-device build (`npm ci && npm run build`) and the deploy-as-static-bundle expectation
-- [ ] T090 Run `quickstart.md §6` smoke tests (`pytest tests/integration/test_full_timelapse_mock.py`, `pytest tests/integration/test_full_video_pan_mock.py`, `pytest tests/contract/`) and fix any failures
-- [ ] T091 [P] Add `host/examples/host.yaml` template for the Pi-side config referenced by `quickstart.md §4.2`
-- [ ] T092 Add a `cameracommander serve --mock` warning when `web/dist/` is missing (logged once, with the build instruction) per cli-commands.md §`serve`
-- [ ] T093 Verify SC-008 protocol-version mismatch path: integration test that boots mock firmware with `--fw-version 2.0.0`, asserts host disconnects, marks `tripod.protocol_compatible=false`, surfaces the operator-visible error before any command, in `host/tests/integration/test_protocol_mismatch.py`
-- [ ] T094 Verify SC-004 5-second fault detection: integration test that simulates camera disconnect mid-timelapse via `MockCameraAdapter`'s disconnect toggle (T020), asserts `job.<id>.fault` event fires within 5 s, partial frames remain on disk, in `host/tests/integration/test_fault_detection_window.py`
+- [X] T087 [P] Add `firmware/test/test_safety_clamp.cpp` covering the build-time mechanical tilt clamp from T056
+- [X] T088 [P] Author top-level `README.md` summarising components, links to spec/plan/quickstart, and reproducing the quickstart §2 commands verbatim
+- [X] T089 [P] Author `web/README.md` covering the off-device build (`npm ci && npm run build`) and the deploy-as-static-bundle expectation
+- [X] T090 Run `quickstart.md §6` smoke tests (`pytest tests/integration/test_full_timelapse_mock.py`, `pytest tests/integration/test_full_video_pan_mock.py`, `pytest tests/contract/`) and fix any failures
+- [X] T091 [P] Add `host/examples/host.yaml` template for the Pi-side config referenced by `quickstart.md §4.2`
+- [X] T092 Add a `cameracommander serve --mock` warning when `web/dist/` is missing (logged once, with the build instruction) per cli-commands.md §`serve`
+- [X] T093 Verify SC-008 protocol-version mismatch path: integration test that boots mock firmware with `--fw-version 2.0.0`, asserts host disconnects, marks `tripod.protocol_compatible=false`, surfaces the operator-visible error before any command, in `host/tests/integration/test_protocol_mismatch.py`
+- [X] T094 Verify SC-004 5-second fault detection: integration test that simulates camera disconnect mid-timelapse via `MockCameraAdapter`'s disconnect toggle (T020), asserts `job.<id>.fault` event fires within 5 s, partial frames remain on disk, in `host/tests/integration/test_fault_detection_window.py`
 
 ---
 

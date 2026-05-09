@@ -56,6 +56,7 @@ class SerialTripodAdapter:
         major = int(version.split(".", 1)[0])
         if major != self.config.expected_protocol_major:
             self._protocol_compatible = False
+            self._last_error = f"tripod protocol version mismatch: {version}"
             raise ProtocolVersionMismatchError(
                 f"tripod protocol version mismatch: {version}",
                 expected_major=self.config.expected_protocol_major,
@@ -71,9 +72,13 @@ class SerialTripodAdapter:
 
     async def status(self) -> TripodStatus:
         try:
-            if self._serial is not None and self._serial.is_open:
+            if not self._protocol_compatible:
+                state = TripodState.error
+            elif self._serial is not None and self._serial.is_open:
                 await self.report()
-            state = TripodState.connected if self._serial is not None else TripodState.disconnected
+                state = TripodState.connected
+            else:
+                state = TripodState.disconnected
         except Exception as exc:
             state = TripodState.error
             self._last_error = str(exc)

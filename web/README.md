@@ -20,6 +20,20 @@ npm run build        # produces dist/
 npm test             # vitest
 ```
 
+## Off-Device Build And Deploy
+
+The Pi does not run Node, Vite, SSR, or a dev server. Build on a laptop or CI:
+
+```bash
+cd web
+npm ci
+npm run build
+```
+
+Deploy the resulting `web/dist/` next to the host checkout. The FastAPI app
+serves that directory with `StaticFiles`; if it is missing, `serve` logs a
+single warning and exposes only the API.
+
 ## Views
 
 | View | Source | Spec |

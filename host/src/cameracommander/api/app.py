@@ -39,7 +39,9 @@ if TYPE_CHECKING:
     from ..hardware.tripod.base import TripodAdapter
 else:
     CameraAdapter = object
-    TripodAdapter = object
+TripodAdapter = object
+
+_WEB_DIST_WARNING_EMITTED = False
 
 
 def _resolve_web_dist() -> Path | None:
@@ -138,10 +140,13 @@ def create_app(
         if dist is not None:
             app.mount("/", StaticFiles(directory=dist, html=True), name="web")
         else:
-            logger.warning(
-                "web/dist/ not found alongside host/; serving API only. "
-                "Build the SPA with `cd web && npm ci && npm run build`."
-            )
+            global _WEB_DIST_WARNING_EMITTED
+            if not _WEB_DIST_WARNING_EMITTED:
+                logger.warning(
+                    "web/dist/ not found alongside host/; serving API only. "
+                    "Build the SPA with `cd web && npm ci && npm run build`."
+                )
+                _WEB_DIST_WARNING_EMITTED = True
 
     return app
 

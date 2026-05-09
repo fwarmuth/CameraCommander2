@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import threading
 from pathlib import Path
 from typing import Annotated
 
@@ -18,6 +20,7 @@ from cameracommander.core.config import (
 )
 from cameracommander.hardware.camera.mock import MockCameraAdapter
 from cameracommander.hardware.tripod.serial_adapter import SerialTripodAdapter
+from cameracommander.mock_firmware.server import MockFirmwareConfig, MockFirmwareServer
 
 
 def command(
@@ -34,14 +37,46 @@ def command(
 ) -> None:
     _ = config
     tripod = None
+    mock_server = None
     if mock or mock_tripod:
+        if mock:
+            mock_server = _MockFirmwareThread()
+            mock_server.start()
         cfg = _minimal_config("socket://127.0.0.1:9999")
         tripod = SerialTripodAdapter(cfg.tripod)
     app = create_app(
         camera=MockCameraAdapter() if mock or mock_camera else None,
         tripod=tripod,
     )
-    uvicorn.run(app, host=host, port=port, reload=reload, workers=1)
+    try:
+        uvicorn.run(app, host=host, port=port, reload=reload, workers=1)
+    finally:
+        if mock_server is not None:
+            mock_server.stop()
+
+
+class _MockFirmwareThread:
+    def __init__(self) -> None:
+        self._loop = asyncio.new_event_loop()
+        self._server = MockFirmwareServer(MockFirmwareConfig())
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._started = threading.Event()
+
+    def start(self) -> None:
+        self._thread.start()
+        self._started.wait(timeout=5)
+
+    def stop(self) -> None:
+        future = asyncio.run_coroutine_threadsafe(self._server.stop(), self._loop)
+        future.result(timeout=5)
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join(timeout=5)
+
+    def _run(self) -> None:
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_until_complete(self._server.start(host="127.0.0.1", port=9999))
+        self._started.set()
+        self._loop.run_forever()
 
 
 def _minimal_config(port: str) -> Configuration:

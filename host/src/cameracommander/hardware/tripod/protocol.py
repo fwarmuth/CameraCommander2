@@ -186,9 +186,9 @@ def parse_reply(line: str) -> Reply:
 
 
 __all__ = [
+    "LINE_TERMINATOR",
     "DoneReply",
     "ErrorReply",
-    "LINE_TERMINATOR",
     "OkReply",
     "ProtocolParseError",
     "Reply",

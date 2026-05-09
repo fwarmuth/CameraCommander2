@@ -7,7 +7,7 @@ The same models back the FastAPI ``Configuration`` request body (Constitution II
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -26,7 +26,7 @@ from .errors import ConfigError
 
 
 def _utcnow() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 class Angles(BaseModel):

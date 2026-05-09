@@ -1,0 +1,6 @@
+camera:
+  model_substring: "EOS"
+tripod:
+  serial:
+    port: "/dev/ttyUSB0"
+session_library_root: "~/.cameracommander/sessions"

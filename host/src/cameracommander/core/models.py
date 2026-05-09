@@ -1,13 +1,13 @@
 """Runtime entity models: Job, Session, HardwareConnection, FaultEvent.
 
-These mirror ``data-model.md`` §2–§5 and are surfaced over the REST + WebSocket
+These mirror ``data-model.md`` sections 2-5 and are surfaced over the REST + WebSocket
 contracts. Configuration models live in :mod:`cameracommander.core.config`.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,13 +16,13 @@ from .config import Angles, Configuration
 
 
 def _utcnow() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 # --- Enums ---------------------------------------------------------------
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     pending = "pending"
     running = "running"
     completed = "completed"
@@ -30,24 +30,24 @@ class JobStatus(str, Enum):
     stopped = "stopped"
 
 
-class JobKind(str, Enum):
+class JobKind(StrEnum):
     timelapse = "timelapse"
     video_pan = "video_pan"
 
 
-class CameraState(str, Enum):
+class CameraState(StrEnum):
     connected = "connected"
     disconnected = "disconnected"
     error = "error"
 
 
-class TripodState(str, Enum):
+class TripodState(StrEnum):
     connected = "connected"
     disconnected = "disconnected"
     error = "error"
 
 
-class CalibrationStateValue(str, Enum):
+class CalibrationStateValue(StrEnum):
     unknown = "unknown"
     homed = "homed"
 

@@ -78,6 +78,10 @@ def command(
         bool,
         typer.Option("--mock", help="Use the mock camera adapter."),
     ] = False,
+    mock_camera: Annotated[
+        bool,
+        typer.Option("--mock-camera", help="Use the mock camera adapter."),
+    ] = False,
 ) -> None:
     config_path = first if output is not None else None
     output_path = output or first
@@ -88,7 +92,7 @@ def command(
                 output=output_path,
                 model_substring=model_substring,
                 autofocus=autofocus,
-                mock=mock,
+                mock=mock or mock_camera,
             )
         )
     except (OSError, ValidationError) as exc:
