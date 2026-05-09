@@ -4,7 +4,7 @@ tripod:
   serial:
     port: "/dev/ttyUSB0"
 camera:
-  model_substring: "MOCK"
+  model_substring: "EOS"
 safety:
   tilt_min_deg: -45
   tilt_max_deg: 45
