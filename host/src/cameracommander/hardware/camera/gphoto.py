@@ -31,13 +31,13 @@ class GphotoCameraAdapter:
     def _open_blocking(self) -> None:
         try:
             self._context = gp.gp_context_new()
-            self._camera = gp.gp_camera_new()
+            self._camera = gp.check_result(gp.gp_camera_new())
 
             # Detect camera
-            abilities_list = gp.gp_abilities_list_new()
+            abilities_list = gp.check_result(gp.gp_abilities_list_new())
             gp.check_result(gp.gp_abilities_list_load(abilities_list, self._context))
 
-            port_info_list = gp.gp_port_info_list_new()
+            port_info_list = gp.check_result(gp.gp_port_info_list_new())
             gp.check_result(gp.gp_port_info_list_load(port_info_list))
 
             camera_list = gp.check_result(gp.gp_camera_autodetect(self._context))
