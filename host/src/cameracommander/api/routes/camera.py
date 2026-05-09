@@ -198,6 +198,8 @@ async def get_camera_preview_stream(request: Request) -> StreamingResponse:
 
     async def frames():
         async for frame in stream:
+            if _active_job_locked(container):
+                break
             yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
 
     return StreamingResponse(
