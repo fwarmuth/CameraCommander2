@@ -1,0 +1,27 @@
+# Build output
+dist/
+.svelte-kit/
+
+# Dependencies
+node_modules/
+
+# Caches
+.vite/
+.eslintcache
+
+# Generated API client
+src/lib/api/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.*
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

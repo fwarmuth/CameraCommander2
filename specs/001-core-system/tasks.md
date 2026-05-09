@@ -24,12 +24,12 @@ description: "Task list for CameraCommander2 — Core System"
 
 **Purpose**: Repository scaffolding for the three components and basic toolchains. No business logic.
 
-- [ ] T001 Create top-level component directories `firmware/`, `host/`, `web/` and per-component `README.md` stubs at `firmware/README.md`, `host/README.md`, `web/README.md`
-- [ ] T002 [P] Create `host/pyproject.toml` declaring Python 3.12, the runtime deps from plan.md (fastapi, uvicorn[standard], pydantic v2, typer, pyyaml, pyserial, gphoto2, pillow, piexif, loguru), dev deps (pytest, pytest-asyncio, httpx, ruff, mypy), and the `cameracommander` console-script entry point
-- [ ] T003 [P] Create `firmware/platformio.ini` with `[env:nodemcuv2]` (ESP8266, default) and `[env:esp32]` environments, `lib_deps = waspinator/AccelStepper@^1.64`, framework=arduino, build flags for C++17
-- [ ] T004 [P] Create `web/package.json`, `web/vite.config.ts`, `web/tsconfig.json`, `web/svelte.config.js`, `web/tailwind.config.js`, `web/postcss.config.js` for Svelte 4 + Vite + TypeScript + Tailwind, with scripts `build`, `dev`, `test` (vitest)
-- [ ] T005 [P] Configure linting/formatting: `host/ruff.toml` and `host/mypy.ini` for Python; `web/.eslintrc.cjs`, `web/.prettierrc` for the SPA; root `.editorconfig`
-- [ ] T006 [P] Add `host/.gitignore` and `web/.gitignore` covering `.venv/`, `__pycache__/`, `node_modules/`, `dist/`, `*.egg-info`, `~/.cameracommander/` artefacts under repo
+- [X] T001 Create top-level component directories `firmware/`, `host/`, `web/` and per-component `README.md` stubs at `firmware/README.md`, `host/README.md`, `web/README.md`
+- [X] T002 [P] Create `host/pyproject.toml` declaring Python 3.12, the runtime deps from plan.md (fastapi, uvicorn[standard], pydantic v2, typer, pyyaml, pyserial, gphoto2, pillow, piexif, loguru), dev deps (pytest, pytest-asyncio, httpx, ruff, mypy), and the `cameracommander` console-script entry point
+- [X] T003 [P] Create `firmware/platformio.ini` with `[env:nodemcuv2]` (ESP8266, default) and `[env:esp32]` environments, `lib_deps = waspinator/AccelStepper@^1.64`, framework=arduino, build flags for C++17
+- [X] T004 [P] Create `web/package.json`, `web/vite.config.ts`, `web/tsconfig.json`, `web/svelte.config.js`, `web/tailwind.config.js`, `web/postcss.config.js` for Svelte 4 + Vite + TypeScript + Tailwind, with scripts `build`, `dev`, `test` (vitest)
+- [X] T005 [P] Configure linting/formatting: `host/ruff.toml` and `host/mypy.ini` for Python; `web/.eslintrc.cjs`, `web/.prettierrc` for the SPA; root `.editorconfig`
+- [X] T006 [P] Add `host/.gitignore` and `web/.gitignore` covering `.venv/`, `__pycache__/`, `node_modules/`, `dist/`, `*.egg-info`, `~/.cameracommander/` artefacts under repo
 
 ---
 
@@ -41,35 +41,35 @@ description: "Task list for CameraCommander2 — Core System"
 
 ### Domain models & errors
 
-- [ ] T007 [P] Create domain exception hierarchy (`ConfigError`, `MotionLimitError`, `CalibrationRequiredError`, `MotorStallError`, `SerialLostError`, `CameraError`, `CaptureError`, `DiskFullError`, `JobAlreadyRunningError`, `ProtocolVersionMismatchError`, `MockOnlyError`) in `host/src/cameracommander/core/errors.py`
-- [ ] T008 [P] Implement Pydantic v2 models for `Configuration`, `ConfigurationMetadata`, `CameraConfig`, `TripodConfig` (with nested `serial`), `SafetyConfig`, `OutputConfig` (with nested `video`), and the discriminated `TimelapseSequenceConfig | VideoPanSequenceConfig` union per data-model.md §1 in `host/src/cameracommander/core/config.py`. Include validators: tilt-window covers all keyframes (FR-009), `settle_time_s ≤ interval_s` (FR-017), `frame_filename_template` contains `{index:04d}` (FR-043), `video.fps` required when `video.assemble` (FR-022), `total_frames ≥ 2` (FR-015)
-- [ ] T009 [P] Implement Pydantic models for `Job`, `JobStatus` enum, `JobProgress`, `FaultEvent`, `Session`, `SessionSummary`, `SessionAsset`, `HardwareConnection`, `CameraStatus`, `TripodStatus`, `CalibrationState` per data-model.md §2–§5 in `host/src/cameracommander/core/models.py`
-- [ ] T010 [P] Implement YAML loader/dumper that round-trips a `Configuration` (UTF-8, block style, `created_at` defaulted on parse) in `host/src/cameracommander/core/config.py` (extend the same module)
+- [X] T007 [P] Create domain exception hierarchy (`ConfigError`, `MotionLimitError`, `CalibrationRequiredError`, `MotorStallError`, `SerialLostError`, `CameraError`, `CaptureError`, `DiskFullError`, `JobAlreadyRunningError`, `ProtocolVersionMismatchError`, `MockOnlyError`) in `host/src/cameracommander/core/errors.py`
+- [X] T008 [P] Implement Pydantic v2 models for `Configuration`, `ConfigurationMetadata`, `CameraConfig`, `TripodConfig` (with nested `serial`), `SafetyConfig`, `OutputConfig` (with nested `video`), and the discriminated `TimelapseSequenceConfig | VideoPanSequenceConfig` union per data-model.md §1 in `host/src/cameracommander/core/config.py`. Include validators: tilt-window covers all keyframes (FR-009), `settle_time_s ≤ interval_s` (FR-017), `frame_filename_template` contains `{index:04d}` (FR-043), `video.fps` required when `video.assemble` (FR-022), `total_frames ≥ 2` (FR-015)
+- [X] T009 [P] Implement Pydantic models for `Job`, `JobStatus` enum, `JobProgress`, `FaultEvent`, `Session`, `SessionSummary`, `SessionAsset`, `HardwareConnection`, `CameraStatus`, `TripodStatus`, `CalibrationState` per data-model.md §2–§5 in `host/src/cameracommander/core/models.py`
+- [X] T010 [P] Implement YAML loader/dumper that round-trips a `Configuration` (UTF-8, block style, `created_at` defaulted on parse) in `host/src/cameracommander/core/config.py` (extend the same module)
 
 ### Hardware abstraction protocols
 
-- [ ] T011 [P] Define `CameraAdapter` Protocol (connect, disconnect, query_settings, apply_settings, capture_still, start_recording, stop_recording, preview_frame_jpeg, preview_stream) in `host/src/cameracommander/hardware/camera/base.py`
-- [ ] T012 [P] Define `TripodAdapter` Protocol (connect, disconnect, version, status, move_to, nudge, home, set_drivers, stop, set_microstep) and `MoveResult`/`StatusReport` dataclasses in `host/src/cameracommander/hardware/tripod/base.py`
-- [ ] T013 [P] Implement firmware-protocol command formatter and reply parser (single-line ASCII per `contracts/firmware-protocol.md`: `V`, `M <pan> <tilt>`, `S`, `1/2/4/8/6`, `n/c/r/x`, `w/p/t/z`, `X`, `+`/`-`, `d`/`e`; `OK …`, `DONE`, `STATUS`, `VERSION`, `ERR …`) in `host/src/cameracommander/hardware/tripod/protocol.py`
+- [X] T011 [P] Define `CameraAdapter` Protocol (connect, disconnect, query_settings, apply_settings, capture_still, start_recording, stop_recording, preview_frame_jpeg, preview_stream) in `host/src/cameracommander/hardware/camera/base.py`
+- [X] T012 [P] Define `TripodAdapter` Protocol (connect, disconnect, version, status, move_to, nudge, home, set_drivers, stop, set_microstep) and `MoveResult`/`StatusReport` dataclasses in `host/src/cameracommander/hardware/tripod/base.py`
+- [X] T013 [P] Implement firmware-protocol command formatter and reply parser (single-line ASCII per `contracts/firmware-protocol.md`: `V`, `M <pan> <tilt>`, `S`, `1/2/4/8/6`, `n/c/r/x`, `w/p/t/z`, `X`, `+`/`-`, `d`/`e`; `OK …`, `DONE`, `STATUS`, `VERSION`, `ERR …`) in `host/src/cameracommander/hardware/tripod/protocol.py`
 
 ### Application skeleton & cross-cutting infra
 
-- [ ] T014 Implement loguru sink configuration (file rotation daily, 7-day retention, `~/.cameracommander/logs/host.log`, JSON-serialisable extras carrying `session_id`/`job_id`) and global logger init in `host/src/cameracommander/core/logging.py`
-- [ ] T015 Implement `AppContainer` dependency-injection holder (camera adapter, tripod adapter, safety service, calibration service, jobs service, session repository, event bus) in `host/src/cameracommander/api/deps.py`
-- [ ] T016 Implement FastAPI factory `create_app()` (mounts routers, lifespan opens/closes adapters, serves `web/dist/` via `StaticFiles` when present, single uvicorn worker assumed) in `host/src/cameracommander/api/app.py`
-- [ ] T017 Implement WebSocket fan-out hub: in-memory subscription map, `subscribe`/`unsubscribe` control frames, broadcast helper `EventBus.publish(topic, payload)` per `contracts/host-events.asyncapi.yaml` in `host/src/cameracommander/api/websocket.py` and route registration in `host/src/cameracommander/api/routes/events.py`
-- [ ] T018 Implement Typer root app, global flags (`--log-level`, `--log-file`, `--no-banner`, `--version`), lazy subcommand registration per `contracts/cli-commands.md` in `host/src/cameracommander/cli/main.py`
+- [X] T014 Implement loguru sink configuration (file rotation daily, 7-day retention, `~/.cameracommander/logs/host.log`, JSON-serialisable extras carrying `session_id`/`job_id`) and global logger init in `host/src/cameracommander/core/logging.py`
+- [X] T015 Implement `AppContainer` dependency-injection holder (camera adapter, tripod adapter, safety service, calibration service, jobs service, session repository, event bus) in `host/src/cameracommander/api/deps.py`
+- [X] T016 Implement FastAPI factory `create_app()` (mounts routers, lifespan opens/closes adapters, serves `web/dist/` via `StaticFiles` when present, single uvicorn worker assumed) in `host/src/cameracommander/api/app.py`
+- [X] T017 Implement WebSocket fan-out hub: in-memory subscription map, `subscribe`/`unsubscribe` control frames, broadcast helper `EventBus.publish(topic, payload)` per `contracts/host-events.asyncapi.yaml` in `host/src/cameracommander/api/websocket.py` and route registration in `host/src/cameracommander/api/routes/events.py`
+- [X] T018 Implement Typer root app, global flags (`--log-level`, `--log-file`, `--no-banner`, `--version`), lazy subcommand registration per `contracts/cli-commands.md` in `host/src/cameracommander/cli/main.py`
 
 ### Mock infrastructure (Constitution II — required by US1–US4 testing)
 
-- [ ] T019 [P] Implement mock firmware TCP server (line-protocol parity with `contracts/firmware-protocol.md`, configurable initial pan/tilt/microstep/drivers, `--deg-per-second` motion-time simulation, `--fw-version` override, `--settle-delay`) in `host/src/cameracommander/mock_firmware/server.py` and supporting motion-time model in `host/src/cameracommander/mock_firmware/motion_model.py`
-- [ ] T020 [P] Implement `MockCameraAdapter` (procedural-gradient JPEG generator with frame-counter overlay for captures, bundled JPEG for preview, fake settings dict, simulated USB-disconnect toggle for fault tests) in `host/src/cameracommander/hardware/camera/mock.py`
+- [X] T019 [P] Implement mock firmware TCP server (line-protocol parity with `contracts/firmware-protocol.md`, configurable initial pan/tilt/microstep/drivers, `--deg-per-second` motion-time simulation, `--fw-version` override, `--settle-delay`) in `host/src/cameracommander/mock_firmware/server.py` and supporting motion-time model in `host/src/cameracommander/mock_firmware/motion_model.py`
+- [X] T020 [P] Implement `MockCameraAdapter` (procedural-gradient JPEG generator with frame-counter overlay for captures, bundled JPEG for preview, fake settings dict, simulated USB-disconnect toggle for fault tests) in `host/src/cameracommander/hardware/camera/mock.py`
 
 ### Foundational tests
 
-- [ ] T021 [P] Contract test: parse and re-emit every defined firmware reply / build every defined command line with the parser from T013, asserting byte-for-byte equality, in `host/tests/contract/test_firmware_protocol.py`
-- [ ] T022 [P] Contract test: load `specs/001-core-system/contracts/host-api.openapi.yaml` and assert FastAPI app from T016 exposes every `operationId` with matching method+path in `host/tests/contract/test_openapi_routes.py`
-- [ ] T023 [P] Unit test: configuration validators (tilt-window, settle/interval, filename template, fps requirement, frame minimum, microstep enum) in `host/tests/unit/test_config_validators.py`
+- [X] T021 [P] Contract test: parse and re-emit every defined firmware reply / build every defined command line with the parser from T013, asserting byte-for-byte equality, in `host/tests/contract/test_firmware_protocol.py`
+- [X] T022 [P] Contract test: load `specs/001-core-system/contracts/host-api.openapi.yaml` and assert FastAPI app from T016 exposes every `operationId` with matching method+path in `host/tests/contract/test_openapi_routes.py`
+- [X] T023 [P] Unit test: configuration validators (tilt-window, settle/interval, filename template, fps requirement, frame minimum, microstep enum) in `host/tests/unit/test_config_validators.py`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin in parallel.
 
