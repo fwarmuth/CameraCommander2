@@ -22,12 +22,32 @@ Before touching any hardware, verify the entire stack on your laptop using the b
     npm run build   # This creates web/dist/
     ```
 
-3.  **Run the Mock Stack (3 Terminals):**
-    *   **Terminal A (Mock Firmware):** `cd host && uv run cameracommander mock-firmware --port 9999`
-    *   **Terminal B (Host):** `cd host && uv run cameracommander serve --mock --port 8000`
-    *   **Terminal C (Browser):** Open `http://localhost:8000`
+3.  **Run the Mock Stack:**
 
-**Validation:** In the Web UI, go to **Live Control**. You should see `connected (mock)` and be able to "move" the virtual motors.
+    There are two ways to run the mock environment. **Choose one:**
+
+    **Option A: The "One-Command" Setup (Simpler)**
+    This command starts the host, a mock camera, *and* an internal mock firmware server all at once.
+    \`\`\`bash
+    cd host
+    uv run cameracommander serve --mock --port 8000
+    \`\`\`
+
+    **Option B: The "Separate Terminals" Setup (More Control)**
+    Use this if you want to see the firmware logs separately or customize the mock motor speed.
+    *   **Terminal A (Mock Firmware):**
+        \`\`\`bash
+        cd host
+        uv run cameracommander mock-firmware --port 9999 --deg-per-second 60
+        \`\`\`
+    *   **Terminal B (Host):**
+        \`\`\`bash
+        cd host
+        uv run cameracommander serve --mock-camera --mock-tripod --port 8000
+        \`\`\`
+
+**Validation:** In both cases, open \`http://localhost:8000\`, go to **Live Control**. You should see \`connected (mock)\` and be able to "move" the virtual motors.
+
 
 ---
 

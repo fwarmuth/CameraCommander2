@@ -24,6 +24,19 @@ for the full walk-through (mock laptop run, Pi deployment, smoke tests).
 
 ## Full Mock Workflow
 
+### Option A: Simple (Internal Mock Firmware)
+
+Starts everything in one command.
+
+```bash
+cd host
+uv run cameracommander serve --mock --port 8000
+```
+
+### Option B: Advanced (External Mock Firmware)
+
+Use separate terminals to see firmware logs or customize speed.
+
 Terminal A:
 
 ```bash
@@ -35,15 +48,7 @@ Terminal B:
 
 ```bash
 cd host
-uv run cameracommander serve --mock --port 8000
-```
-
-Terminal C:
-
-```bash
-cd host
-uv run cameracommander timelapse --mock examples/timelapse_mock.yaml
-uv run cameracommander pan --mock examples/video_pan_mock.yaml
+uv run cameracommander serve --mock-camera --mock-tripod --port 8000
 ```
 
 The same mock stack is available through the web UI at `http://localhost:8000`

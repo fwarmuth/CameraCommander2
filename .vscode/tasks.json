@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Cleanup: Ports 8000 & 9999",
+      "type": "shell",
+      "command": "fuser -k 8000/tcp 9999/tcp || true",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

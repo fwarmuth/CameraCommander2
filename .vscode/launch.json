@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Host: Serve (Mock) [Verbose]",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/host/.venv/bin/python3",
+      "module": "cameracommander.cli.main",
+      "cwd": "${workspaceFolder}/host",
+      "args": [
+        "serve",
+        "--mock",
+        "--port", "8010",
+        "--host", "0.0.0.0"
+      ],
+      "env": {
+        "PYTHONPATH": "src",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "preLaunchTask": "Cleanup: Ports 8000 & 9999",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

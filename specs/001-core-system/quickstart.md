@@ -56,29 +56,37 @@ npm run build                    # produces web/dist/
 
 ## 2. Mock end-to-end shoot (laptop, no hardware)
 
-Run three terminals from the repo root.
+There are two ways to run the mock environment.
 
-**Terminal A — mock firmware**
-```bash
-cd host
-uv run cameracommander mock-firmware --port 9999 --deg-per-second 60
-```
+### Option A: The "One-Command" Setup (Simpler)
 
-**Terminal B — host with mock camera**
-```bash
+This command starts the host, a mock camera, *and* an internal mock firmware server all at once.
+
+\`\`\`bash
 cd host
 uv run cameracommander serve --mock --port 8000
-```
+\`\`\`
 
-**Terminal C — open the UI**
-```
-xdg-open http://localhost:8000
-```
+### Option B: The "Separate Terminals" Setup (More Control)
 
-In the UI:
-1. Open **Live Control** → confirm camera shows `connected (mock)`, tripod shows `connected v1.0.1`.
-2. Click **Set current as home** → calibration goes from `unknown` to `homed`.
-3. Open **Planner** → fill in the form (or paste the example from `contracts/config-schema.md`) → **Launch timelapse**.
+Use this if you want to see the firmware logs separately or customize the mock motor speed.
+
+**Terminal A — mock firmware**
+\`\`\`bash
+cd host
+uv run cameracommander mock-firmware --port 9999 --deg-per-second 60
+\`\`\`
+
+**Terminal B — host with mock camera**
+\`\`\`bash
+cd host
+uv run cameracommander serve --mock-camera --mock-tripod --port 8000
+\`\`\`
+
+**In the UI (http://localhost:8000):**
+1. Open **Live Control** → confirm camera shows \`connected (mock)\`, tripod shows \`connected v1.0.1\`.
+2. Click **Set current as home** → calibration goes from \`unknown\` to \`homed\`.
+3. Open **Planner** → fill in the form (or paste the example from \`contracts/config-schema.md\`) → **Launch timelapse**.
 4. Open **Monitor** → watch progress; the WebSocket pushes updates every captured frame.
 5. Open **Library** → after completion, the new session appears with frames + assembled video.
 

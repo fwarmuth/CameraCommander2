@@ -16,38 +16,32 @@ Primary references:
 
 ## Mock End-to-End Shoot
 
-Run three terminals from the repo root.
+There are two ways to run the mock environment.
 
-Terminal A:
+### 1. One-Command Setup (Recommended)
 
-```bash
-cd host
-uv run cameracommander mock-firmware --port 9999 --deg-per-second 60
-```
-
-Terminal B:
+Starts the host, mock camera, and internal mock firmware.
 
 ```bash
 cd host
 uv run cameracommander serve --mock --port 8000
 ```
 
-Terminal C:
+### 2. Separate Terminals (for debugging)
 
-```bash
-xdg-open http://localhost:8000
-```
-
-CLI-only equivalent:
-
+Terminal A (Mock Firmware):
 ```bash
 cd host
-uv run cameracommander mock-firmware --port 9999 &
-MOCK_PID=$!
-uv run cameracommander timelapse --mock examples/timelapse_mock.yaml
-uv run cameracommander pan --mock examples/video_pan_mock.yaml
-kill $MOCK_PID
+uv run cameracommander mock-firmware --port 9999 --deg-per-second 60
 ```
+
+Terminal B (Host):
+```bash
+cd host
+uv run cameracommander serve --mock-camera --mock-tripod --port 8000
+```
+
+In both cases, open `http://localhost:8000` to access the UI.
 
 ## First Hardware Steps
 

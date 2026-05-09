@@ -110,4 +110,7 @@ for _name, (_mod, _attr) in _LAZY_COMMANDS.items():
     _register_lazy(_name, _mod, _attr)
 
 
+if __name__ == "__main__":
+    app()
+
 __all__ = ["app"]
