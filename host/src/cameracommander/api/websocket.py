@@ -21,14 +21,20 @@ def _matches(pattern: str, topic: str) -> bool:
         return topic.startswith(pattern[:-1])
     return False
 
-
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Subscriber:
     queue: asyncio.Queue[str] = field(default_factory=lambda: asyncio.Queue(maxsize=256))
     topics: set[str] = field(default_factory=set)
 
     def matches(self, topic: str) -> bool:
         return any(_matches(p, topic) for p in self.topics)
+
+    def subscribe(self, patterns: list[str]) -> None:
+        self.topics.update(patterns)
+
+    def unsubscribe(self, patterns: list[str]) -> None:
+        for p in patterns:
+            self.topics.discard(p)
 
 
 class EventBus:
@@ -46,7 +52,13 @@ class EventBus:
         async with self._lock:
             self._subs.discard(sub)
 
+    async def stream(self, sub: Subscriber) -> AsyncIterator[str]:
+        """Yield JSON frames from the subscriber's queue indefinitely."""
+        while True:
+            yield await sub.queue.get()
+
     async def publish(self, topic: str, payload: Any) -> None:
+...
         """Broadcast a message to all matching subscribers."""
         frame = json.dumps({"topic": topic, "payload": payload})
         async with self._lock:

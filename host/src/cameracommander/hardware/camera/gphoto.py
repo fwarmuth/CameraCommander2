@@ -22,9 +22,11 @@ class GphotoCameraAdapter:
         self._model: str | None = None
         self._port_path: str | None = None
         self._last_error: str | None = None
+        self._lock = asyncio.Lock()
 
     async def open(self) -> None:
-        await asyncio.to_thread(self._open_blocking)
+        async with self._lock:
+            await asyncio.to_thread(self._open_blocking)
 
     def _open_blocking(self) -> None:
         try:
@@ -71,7 +73,8 @@ class GphotoCameraAdapter:
             raise CameraError(f"Failed to open camera: {e}") from e
 
     async def close(self) -> None:
-        await asyncio.to_thread(self._close_blocking)
+        async with self._lock:
+            await asyncio.to_thread(self._close_blocking)
 
     def _close_blocking(self) -> None:
         if self._camera:
@@ -79,28 +82,30 @@ class GphotoCameraAdapter:
             self._camera = None
 
     async def status(self) -> CameraStatus:
+        # Read-only state, no lock needed
         state = CameraState.connected if self._camera is not None else CameraState.disconnected
         return CameraStatus(state=state, model=self._model, last_error=self._last_error)
 
     async def query_settings(self) -> dict[str, SettingDescriptor]:
-        return await asyncio.to_thread(self._query_settings_blocking)
+        async with self._lock:
+            return await asyncio.to_thread(self._query_settings_blocking)
 
     def _query_settings_blocking(self) -> dict[str, SettingDescriptor]:
-        # Implementation omitted for brevity, would walk the widget tree
+        # Implementation placeholder
         return {}
 
     async def apply_settings(self, settings: dict[str, str | int | float | bool]) -> None:
-        await asyncio.to_thread(self._apply_settings_blocking, settings)
+        async with self._lock:
+            await asyncio.to_thread(self._apply_settings_blocking, settings)
 
     def _apply_settings_blocking(self, settings: dict[str, Any]) -> None:
-        # would call gp_camera_set_config
         pass
 
     async def capture_still(self, *, autofocus: bool = False) -> CaptureResult:
-        return await asyncio.to_thread(self._capture_blocking, autofocus)
+        async with self._lock:
+            return await asyncio.to_thread(self._capture_blocking, autofocus)
 
     def _capture_blocking(self, autofocus: bool) -> CaptureResult:
-        # logic for gp_camera_capture
         from datetime import datetime
         import uuid
         return CaptureResult(
@@ -118,10 +123,12 @@ class GphotoCameraAdapter:
         await self.apply_settings({"main.actions.movie": 0})
 
     async def preview_frame_jpeg(self) -> bytes:
-        return await asyncio.to_thread(self._preview_blocking)
+        async with self._lock:
+            return await asyncio.to_thread(self._preview_blocking)
 
     def _preview_blocking(self) -> bytes:
-        camera_file = gp.check_result(gp.gp_camera_capture_preview(self._camera, self._context))
+        camera_file = gp.check_result(gp.gp_file_new())
+        gp.check_result(gp.gp_camera_capture_preview(self._camera, camera_file, self._context))
         return bytes(gp.check_result(gp.gp_file_get_data_and_size(camera_file)))
 
     async def preview_stream(self) -> AsyncIterator[bytes]:
