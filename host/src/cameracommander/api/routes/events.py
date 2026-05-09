@@ -72,7 +72,7 @@ async def events_socket(websocket: WebSocket) -> None:
     reader_task = asyncio.create_task(reader())
     writer_task = asyncio.create_task(writer())
     try:
-        done, pending = await asyncio.wait(
+        _done, pending = await asyncio.wait(
             {reader_task, writer_task}, return_when=asyncio.FIRST_COMPLETED
         )
         for task in pending:

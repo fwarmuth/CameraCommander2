@@ -83,37 +83,37 @@ description: "Task list for CameraCommander2 — Core System"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T024 [P] [US1] Integration test: full mock timelapse (mock firmware TCP + mock camera) via `services.jobs.JobManager.start()` produces correct frame count, ordered filenames, per-frame CSV metadata, and an MP4, in `host/tests/integration/test_full_timelapse_mock.py`
-- [ ] T025 [P] [US1] Contract test: `POST /api/jobs/timelapse` with a valid mock config returns 201 + Job; with calibration `unknown` returns 412; with another job running returns 409, in `host/tests/contract/test_jobs_timelapse_endpoint.py`
-- [ ] T026 [P] [US1] Unit test: `services.timelapse._linear_interpolate` produces tilt values inside the safety window across N frames in `host/tests/unit/test_timelapse_interpolation.py`
-- [ ] T027 [P] [US1] Unit test: disk-space guard halts with `disk_full` when free space drops below `max(remaining_frames * avg, disk_min_free_bytes)` in `host/tests/unit/test_disk_guard.py`
+- [X] T024 [P] [US1] Integration test: full mock timelapse (mock firmware TCP + mock camera) via `services.jobs.JobManager.start()` produces correct frame count, ordered filenames, per-frame CSV metadata, and an MP4, in `host/tests/integration/test_full_timelapse_mock.py`
+- [X] T025 [P] [US1] Contract test: `POST /api/jobs/timelapse` with a valid mock config returns 201 + Job; with calibration `unknown` returns 412; with another job running returns 409, in `host/tests/contract/test_jobs_timelapse_endpoint.py`
+- [X] T026 [P] [US1] Unit test: `services.timelapse._linear_interpolate` produces tilt values inside the safety window across N frames in `host/tests/unit/test_timelapse_interpolation.py`
+- [X] T027 [P] [US1] Unit test: disk-space guard halts with `disk_full` when free space drops below `max(remaining_frames * avg, disk_min_free_bytes)` in `host/tests/unit/test_disk_guard.py`
 
 ### Implementation for User Story 1
 
 #### Real hardware adapters
 
 - [ ] T028 [P] [US1] Implement `GphotoCameraAdapter` (libgphoto2 binding, capture-no-AF, transfer-to-host, settings query/apply, 5s timeout + 1 reconnect retry per research §15) in `host/src/cameracommander/hardware/camera/gphoto.py`
-- [ ] T029 [P] [US1] Implement `SerialTripodAdapter` (pyserial; `socket://` URLs supported; banner drain; `V` handshake with major-version gate per SC-008; `_send` + timeout enforcement; reconnect with `reconnect_interval` and `max_retries`) in `host/src/cameracommander/hardware/tripod/serial_adapter.py`
+- [X] T029 [P] [US1] Implement `SerialTripodAdapter` (pyserial; `socket://` URLs supported; banner drain; `V` handshake with major-version gate per SC-008; `_send` + timeout enforcement; reconnect with `reconnect_interval` and `max_retries`) in `host/src/cameracommander/hardware/tripod/serial_adapter.py`
 
 #### Services
 
-- [ ] T030 [US1] Implement `SafetyService` (`guard_move(pan, tilt)` raises `MotionLimitError` outside tilt window; `validate_sequence(config)` for keyframes + interpolated frames; pure functions for unit testing) in `host/src/cameracommander/services/safety.py` (depends on T008, T030)
-- [ ] T031 [US1] Implement `CalibrationService` (`state` property, `mark_homed()` after `POST /api/tripod/home`, `mark_unknown(reason)` on driver disable / fault / boot, publishes `hardware.calibration` event via T017) in `host/src/cameracommander/services/calibration.py`
-- [ ] T032 [US1] Implement `DiskGuard` (pre-flight estimate, `assert_room_for_next_frame(frames_remaining, running_avg_bytes)`, threshold `max(estimate, disk_min_free_bytes)`) in `host/src/cameracommander/services/disk.py`
-- [ ] T033 [US1] Implement `SessionRepository` (filesystem under `~/.cameracommander/sessions/<id>/`, writes `metadata.json` + `config.yaml`, frame asset registration, list/get/delete) in `host/src/cameracommander/persistence/sessions_fs.py` and the thin service wrapper `host/src/cameracommander/services/sessions.py`
-- [ ] T034 [US1] Implement per-frame metadata writer: try EXIF UserComment via piexif; on failure append a row to `frames/metadata.csv` (timestamp, index, pan, tilt, settings hash); strategy `auto|exif|csv` from `OutputConfig` in `host/src/cameracommander/services/metadata.py`
-- [ ] T035 [US1] Implement video assembly: subprocess `ffmpeg` with profile-mapped flags (`mp4-h264` → `-c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p`), `ffmpeg_extra` override, post-capture invocation, frame-rate from `OutputConfig.video.fps`, stream progress to `EventBus` topic `session.<id>.assemble` in `host/src/cameracommander/services/post_process.py`
-- [ ] T036 [US1] Implement `JobManager` (single-job lock raising `JobAlreadyRunningError` → HTTP 409 per FR-039; lifecycle pending→running→{completed,stopped,failed}; emits `job.<id>.state`, `job.<id>.progress`, `job.<id>.fault` events; cooperative stop flag honoured between frames; calibration gate enforced at `start()` per FR-041) in `host/src/cameracommander/services/jobs.py`
-- [ ] T037 [US1] Implement `TimelapseRunner` capture→settle→move loop: linear tilt interpolation (FR-016), per-frame disk guard call (T032), per-frame move-timeout enforcement using `expected_duration_s + safety.move_timeout_margin_s` (FR-037), cadence-overrun counter that proceeds without skipping (FR-038) and flips `flags.cadence_warning` when >20% per spec edge case, zero-padded filename emission (FR-043), metadata write (T034), session asset registration in `host/src/cameracommander/services/timelapse.py` (depends on T030–T036)
+- [X] T030 [US1] Implement `SafetyService` (`guard_move(pan, tilt)` raises `MotionLimitError` outside tilt window; `validate_sequence(config)` for keyframes + interpolated frames; pure functions for unit testing) in `host/src/cameracommander/services/safety.py` (depends on T008, T030)
+- [X] T031 [US1] Implement `CalibrationService` (`state` property, `mark_homed()` after `POST /api/tripod/home`, `mark_unknown(reason)` on driver disable / fault / boot, publishes `hardware.calibration` event via T017) in `host/src/cameracommander/services/calibration.py`
+- [X] T032 [US1] Implement `DiskGuard` (pre-flight estimate, `assert_room_for_next_frame(frames_remaining, running_avg_bytes)`, threshold `max(estimate, disk_min_free_bytes)`) in `host/src/cameracommander/services/disk.py`
+- [X] T033 [US1] Implement `SessionRepository` (filesystem under `~/.cameracommander/sessions/<id>/`, writes `metadata.json` + `config.yaml`, frame asset registration, list/get/delete) in `host/src/cameracommander/persistence/sessions_fs.py` and the thin service wrapper `host/src/cameracommander/services/sessions.py`
+- [X] T034 [US1] Implement per-frame metadata writer: try EXIF UserComment via piexif; on failure append a row to `frames/metadata.csv` (timestamp, index, pan, tilt, settings hash); strategy `auto|exif|csv` from `OutputConfig` in `host/src/cameracommander/services/metadata.py`
+- [X] T035 [US1] Implement video assembly: subprocess `ffmpeg` with profile-mapped flags (`mp4-h264` → `-c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p`), `ffmpeg_extra` override, post-capture invocation, frame-rate from `OutputConfig.video.fps`, stream progress to `EventBus` topic `session.<id>.assemble` in `host/src/cameracommander/services/post_process.py`
+- [X] T036 [US1] Implement `JobManager` (single-job lock raising `JobAlreadyRunningError` → HTTP 409 per FR-039; lifecycle pending→running→{completed,stopped,failed}; emits `job.<id>.state`, `job.<id>.progress`, `job.<id>.fault` events; cooperative stop flag honoured between frames; calibration gate enforced at `start()` per FR-041) in `host/src/cameracommander/services/jobs.py`
+- [X] T037 [US1] Implement `TimelapseRunner` capture→settle→move loop: linear tilt interpolation (FR-016), per-frame disk guard call (T032), per-frame move-timeout enforcement using `expected_duration_s + safety.move_timeout_margin_s` (FR-037), cadence-overrun counter that proceeds without skipping (FR-038) and flips `flags.cadence_warning` when >20% per spec edge case, zero-padded filename emission (FR-043), metadata write (T034), session asset registration in `host/src/cameracommander/services/timelapse.py` (depends on T030–T036)
 
 #### REST API endpoints (US1 scope)
 
-- [ ] T038 [P] [US1] Implement `GET /api/health` (`Health` schema, includes `active_job_id`) in `host/src/cameracommander/api/routes/health.py`
-- [ ] T039 [P] [US1] Implement `GET /api/hardware/status` (aggregate `HardwareStatus` from camera adapter + tripod adapter + calibration service) in `host/src/cameracommander/api/routes/health.py`
-- [ ] T040 [US1] Implement `POST /api/tripod/home` (calls `CalibrationService.mark_homed()`, returns updated `TripodStatus`) in `host/src/cameracommander/api/routes/tripod.py`
-- [ ] T041 [US1] Implement `POST /api/jobs/timelapse` (validates `Configuration` body, dispatches to `JobManager.start("timelapse", config)`, returns 201 + `Job`; maps errors to 400/409/412/503) in `host/src/cameracommander/api/routes/jobs.py`
-- [ ] T042 [US1] Implement `GET /api/jobs/{job_id}`, `GET /api/jobs/active`, `POST /api/jobs/{job_id}/stop` in `host/src/cameracommander/api/routes/jobs.py`
-- [ ] T043 [US1] Implement `GET /api/sessions/{session_id}/config` (returns the captured `Configuration` as JSON or YAML by `Accept` header — FR-024) in `host/src/cameracommander/api/routes/sessions.py`
+- [X] T038 [P] [US1] Implement `GET /api/health` (`Health` schema, includes `active_job_id`) in `host/src/cameracommander/api/routes/health.py`
+- [X] T039 [P] [US1] Implement `GET /api/hardware/status` (aggregate `HardwareStatus` from camera adapter + tripod adapter + calibration service) in `host/src/cameracommander/api/routes/health.py`
+- [X] T040 [US1] Implement `POST /api/tripod/home` (calls `CalibrationService.mark_homed()`, returns updated `TripodStatus`) in `host/src/cameracommander/api/routes/tripod.py`
+- [X] T041 [US1] Implement `POST /api/jobs/timelapse` (validates `Configuration` body, dispatches to `JobManager.start("timelapse", config)`, returns 201 + `Job`; maps errors to 400/409/412/503) in `host/src/cameracommander/api/routes/jobs.py`
+- [X] T042 [US1] Implement `GET /api/jobs/{job_id}`, `GET /api/jobs/active`, `POST /api/jobs/{job_id}/stop` in `host/src/cameracommander/api/routes/jobs.py`
+- [X] T043 [US1] Implement `GET /api/sessions/{session_id}/config` (returns the captured `Configuration` as JSON or YAML by `Accept` header — FR-024) in `host/src/cameracommander/api/routes/sessions.py`
 
 #### CLI
 

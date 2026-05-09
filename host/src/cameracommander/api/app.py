@@ -18,13 +18,25 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from ..core.logging import logger
+from ..hardware.camera.mock import MockCameraAdapter
+from ..persistence.sessions_fs import SessionRepository
+from ..services.calibration import CalibrationService
+from ..services.jobs import JobManager
+from ..services.post_process import VideoAssembler
 from .deps import AppContainer
 from .routes.events import router as events_router
+from .routes.health import router as health_router
+from .routes.jobs import router as jobs_router
+from .routes.sessions import router as sessions_router
+from .routes.tripod import router as tripod_router
 from .websocket import EventBus
 
 if TYPE_CHECKING:
     from ..hardware.camera.base import CameraAdapter
     from ..hardware.tripod.base import TripodAdapter
+else:
+    CameraAdapter = object
+    TripodAdapter = object
 
 
 def _resolve_web_dist() -> Path | None:
@@ -49,8 +61,9 @@ def _resolve_web_dist() -> Path | None:
 
 def create_app(
     *,
-    camera: "CameraAdapter | None" = None,
-    tripod: "TripodAdapter | None" = None,
+    camera: CameraAdapter | None = None,
+    tripod: TripodAdapter | None = None,
+    session_root: str | Path | None = None,
     serve_static: bool = True,
 ) -> FastAPI:
     """Build the FastAPI application.
@@ -60,10 +73,23 @@ def create_app(
     later phases (jobs, sessions, camera, tripod) attach via the same factory.
     """
 
+    event_bus = EventBus()
+    camera_adapter = camera or MockCameraAdapter()
+    calibration = CalibrationService(event_bus)
+    sessions = SessionRepository(session_root)
+    jobs = JobManager(
+        camera=camera_adapter,
+        tripod=tripod,
+        calibration=calibration,
+        sessions=sessions,
+        event_bus=event_bus,
+    )
+    post_process = VideoAssembler(event_bus)
+
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        if camera is not None:
-            await camera.open()
+        if camera_adapter is not None:
+            await camera_adapter.open()
         if tripod is not None:
             await tripod.open()
         try:
@@ -72,9 +98,9 @@ def create_app(
             if tripod is not None:
                 with contextlib.suppress(Exception):
                     await tripod.close()
-            if camera is not None:
+            if camera_adapter is not None:
                 with contextlib.suppress(Exception):
-                    await camera.close()
+                    await camera_adapter.close()
 
     app = FastAPI(
         title="CameraCommander2 Host API",
@@ -82,14 +108,20 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.container = AppContainer(
-        event_bus=EventBus(),
-        camera=camera,
+        event_bus=event_bus,
+        camera=camera_adapter,
         tripod=tripod,
+        calibration=calibration,
+        jobs=jobs,
+        sessions=sessions,
+        post_process=post_process,
     )
 
     app.include_router(events_router)
-    # Camera, tripod, jobs, sessions, health routers are wired in during the
-    # respective user-story phases (US1+).
+    app.include_router(health_router)
+    app.include_router(jobs_router)
+    app.include_router(tripod_router)
+    app.include_router(sessions_router)
 
     if serve_static:
         dist = _resolve_web_dist()

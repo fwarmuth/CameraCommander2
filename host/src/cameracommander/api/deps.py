@@ -19,6 +19,9 @@ from .websocket import EventBus
 if TYPE_CHECKING:
     from ..hardware.camera.base import CameraAdapter
     from ..hardware.tripod.base import TripodAdapter
+else:
+    CameraAdapter = object
+    TripodAdapter = object
 
 
 @dataclass(slots=True)
@@ -26,8 +29,8 @@ class AppContainer:
     """Holds the singletons that route handlers depend on."""
 
     event_bus: EventBus
-    camera: "CameraAdapter | None" = None
-    tripod: "TripodAdapter | None" = None
+    camera: CameraAdapter | None = None
+    tripod: TripodAdapter | None = None
     # The remaining services (safety, calibration, jobs, sessions, disk_guard,
     # post_process) attach in later tasks (US1 phase) — they're optional here so
     # foundational tests can build a minimal AppContainer without them.

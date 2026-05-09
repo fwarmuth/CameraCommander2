@@ -46,7 +46,7 @@ class ConfigurationMetadata(BaseModel):
     tags: Annotated[
         list[Annotated[str, Field(max_length=40)]],
         Field(default_factory=list, max_length=16),
-    ] = []
+    ]
     created_at: datetime = Field(default_factory=_utcnow)
 
 

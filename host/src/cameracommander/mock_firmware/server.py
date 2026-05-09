@@ -9,13 +9,10 @@ timing budget logic.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..core.logging import logger
-from ..hardware.tripod.protocol import (
-    LINE_TERMINATOR,
-    _MICROSTEP_FROM_TOKEN,
-)
+from ..hardware.tripod.protocol import _MICROSTEP_FROM_TOKEN, LINE_TERMINATOR
 from .motion_model import MotionModel
 
 DEFAULT_FW_VERSION = "1.0.1"
@@ -93,9 +90,7 @@ class MockFirmwareServer:
         state = self._new_connection_state()
 
         if self.config.boot_banner:
-            banner = (
-                f"Dual-axis turntable – firmware {self.config.fw_version}{LINE_TERMINATOR}"
-            )
+            banner = f"Dual-axis turntable - firmware {self.config.fw_version}{LINE_TERMINATOR}"
             writer.write(banner.encode("ascii"))
             await writer.drain()
 

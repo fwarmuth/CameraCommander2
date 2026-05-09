@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import yaml
 from fastapi.routing import APIRoute, APIWebSocketRoute
 
@@ -61,17 +60,21 @@ def test_app_factory_mounts_websocket_events_route() -> None:
     assert "/ws/events" in ws_paths
 
 
-def test_app_factory_starts_with_no_per_route_http_routes_yet() -> None:
-    """Foundational scaffold has only the WebSocket route + static SPA fallback.
-
-    This test is the canary: when later phases add /api/* HTTP routes, they
-    must update this assertion (or — preferably — replace it with a positive
-    enumeration of registered operationIds against the OpenAPI doc).
-    """
-
+def test_app_factory_registers_implemented_openapi_operations() -> None:
     app = create_app(serve_static=False)
-    api_paths = {
-        r.path for r in app.routes if isinstance(r, APIRoute) and r.path.startswith("/api")
+    route_ops = {
+        r.operation_id: (next(iter(r.methods)), r.path)
+        for r in app.routes
+        if isinstance(r, APIRoute) and r.path.startswith("/api")
     }
-    # No /api/* routes have been wired yet; that's expected at this checkpoint.
-    assert api_paths == set()
+    expected = {
+        "getHealth",
+        "getHardwareStatus",
+        "postTimelapseJob",
+        "getActiveJob",
+        "getJob",
+        "postJobStop",
+        "postTripodHome",
+        "getSessionConfig",
+    }
+    assert expected.issubset(route_ops.keys())
