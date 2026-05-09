@@ -135,11 +135,21 @@ class Session(SessionSummary):
     fault: FaultEvent | None = None
 
 
-    "CaptureResult",
+class CaptureResult(BaseModel):
+    """Result of a one-shot still capture."""
+
+    capture_id: Annotated[str, Field(description="UUID")]
+    content_type: str
+    captured_at: datetime
+    size_bytes: int
+    download_url: str
+
+
 __all__ = [
     "CalibrationValue",
     "CameraState",
     "CameraStatus",
+    "CaptureResult",
     "FaultEvent",
     "HardwareStatus",
     "Job",
@@ -153,11 +163,3 @@ __all__ = [
     "TripodState",
     "TripodStatus",
 ]
-
-class CaptureResult(BaseModel):
-    """Result of a one-shot still capture."""
-    capture_id: Annotated[str, Field(description="UUID")]
-    content_type: str
-    captured_at: datetime
-    size_bytes: int
-    download_url: str

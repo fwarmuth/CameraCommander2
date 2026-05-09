@@ -14,13 +14,20 @@ from .safety import SafetyService
 from .disk import DiskGuard
 from .metadata import MetadataWriter
 
+def _linear_interpolate(start: float, target: float, current: int, total: int) -> float:
+    """Linearly interpolate between start and target."""
+    if total <= 1:
+        return start
+    return start + (target - start) * (current / (total - 1))
+
+
 class TimelapseRunner:
     def __init__(
         self,
         camera: CameraAdapter,
         tripod: TripodAdapter,
         safety: SafetyService,
-        disk: DiskGuard
+        disk: DiskGuard,
     ) -> None:
         self.camera = camera
         self.tripod = tripod
@@ -30,33 +37,53 @@ class TimelapseRunner:
     async def run(self, job: Job, config: Configuration, stop_event: asyncio.Event) -> None:
         job.status = JobStatus.running
         job.started_at = datetime.now(tz=UTC)
-        
+
         output_dir = Path(config.output.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         meta_writer = MetadataWriter(output_dir / "metadata.csv")
 
         total = config.sequence.total_frames
         interval = timedelta(seconds=config.sequence.interval_s)
-        
+
         for i in range(total):
             if stop_event.is_set():
                 job.status = JobStatus.stopped
                 break
 
             loop_start = datetime.now(tz=UTC)
-            
+
             # 1. Capture
-            result = await self.camera.capture_still()
-            
+            await self.camera.capture_still()
+
             # 2. Metadata
-            current_pan = config.sequence.start.pan_deg + (config.sequence.target.pan_deg - config.sequence.start.pan_deg) * (i / (total - 1))
-            current_tilt = config.sequence.start.tilt_deg + (config.sequence.target.tilt_deg - config.sequence.start.tilt_deg) * (i / (total - 1))
+            current_pan = _linear_interpolate(
+                config.sequence.start.pan_deg,
+                config.sequence.target.pan_deg,
+                i,
+                total,
+            )
+            current_tilt = _linear_interpolate(
+                config.sequence.start.tilt_deg,
+                config.sequence.target.tilt_deg,
+                i,
+                total,
+            )
             meta_writer.add_frame(i, current_pan, current_tilt)
-            
+
             # 3. Move for next frame
             if i < total - 1:
-                next_pan = config.sequence.start.pan_deg + (config.sequence.target.pan_deg - config.sequence.start.pan_deg) * ((i + 1) / (total - 1))
-                next_tilt = config.sequence.start.tilt_deg + (config.sequence.target.tilt_deg - config.sequence.start.tilt_deg) * ((i + 1) / (total - 1))
+                next_pan = _linear_interpolate(
+                    config.sequence.start.pan_deg,
+                    config.sequence.target.pan_deg,
+                    i + 1,
+                    total,
+                )
+                next_tilt = _linear_interpolate(
+                    config.sequence.start.tilt_deg,
+                    config.sequence.target.tilt_deg,
+                    i + 1,
+                    total,
+                )
                 self.safety.guard_move(next_pan, next_tilt)
                 await self.tripod.move_to(next_pan, next_tilt)
             

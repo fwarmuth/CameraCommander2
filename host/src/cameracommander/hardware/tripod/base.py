@@ -11,10 +11,19 @@ from ...core.models import TripodStatus
 @dataclass(frozen=True)
 class MoveResult:
     """Outcome of a motion command."""
+
     pan_deg: float
     tilt_deg: float
-    success: bool
-    error: str | None = None
+    duration_s: float
+
+
+@dataclass(frozen=True)
+class StatusReport:
+    """Detailed runtime state from the firmware."""
+
+    pan_deg: float
+    tilt_deg: float
+    drivers_enabled: bool
 
 
 @runtime_checkable
