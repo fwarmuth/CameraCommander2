@@ -187,13 +187,14 @@ WantedBy=multi-user.target
 
 ## 5. Flashing the ESP firmware
 
-```bash
+\`\`\`bash
 cd firmware
 pio run                       # build for nodemcuv2 (ESP8266) by default
 pio run -e esp32              # alternate target
-pio run --target upload       # flash whatever board is plugged in
+pio run -e nodemcuv2 --target upload  # flash ESP8266
+pio run -e esp32 --target upload      # flash ESP32
 pio device monitor             # watch the boot banner and protocol traffic
-```
+\`\`\`
 
 The firmware emits the boot banner described in `contracts/firmware-protocol.md`. Once the host connects, you should see the host issue `V` and receive `VERSION 1.0.x`.
 

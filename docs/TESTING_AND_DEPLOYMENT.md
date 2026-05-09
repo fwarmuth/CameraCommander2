@@ -1,6 +1,6 @@
 # Testing and Deployment Guide
 
-This guide walks you through the transition from a "safe" mock environment on your laptop to a live deployment on your Raspberry Pi and ESP32 hardware.
+This guide walks you through the transition from a "safe" mock environment on your laptop to a live deployment on your Raspberry Pi and ESP board hardware.
 
 ---
 
@@ -53,33 +53,55 @@ Before touching any hardware, verify the entire stack on your laptop using the b
 
 ## Part 2: The "Hangar" Phase (Hardware Setup & CLI Testing)
 
-Now, connect your ESP32 to your laptop to flash it and perform a "smoke test" via the CLI.
+Now, connect your ESP board (ESP8266 or ESP32) to your laptop to flash it and perform a "smoke test" via the CLI.
+
+0. **Install PlatformIO:**
+    \`\`\`bash
+    uv python install 3.11
+    uv tool install --python 3.11 platformio
+    \`\`\`
+
+    And if using WSL, pass through your USB serial device:
+    \`\`\`bash
+    usbipd list
+    usbipd bind --busid <busid>
+    usbipd attach --wsl --busid <busid>
+    \`\`\`
 
 1.  **Flash the Firmware:**
-    ```bash
+    Choose the command that matches your hardware:
+
+    **For ESP8266 (NodeMCU):**
+    \`\`\`bash
+    cd firmware
+    pio run -e nodemcuv2 --target upload
+    \`\`\`
+
+    **For ESP32:**
+    \`\`\`bash
     cd firmware
     pio run -e esp32 --target upload
-    ```
+    \`\`\`
 
 2.  **Verify via Serial Monitor:**
-    ```bash
+    \`\`\`bash
     pio device monitor
-    ```
-    *   Press the reset button on the ESP32. You should see a boot banner like `CAMERACOMMANDER v1.0.x`.
-    *   Type `V` and press enter; it should respond with `VERSION 1.0.x`.
+    \`\`\`
+    *   Press the reset button on the ESP. You should see a boot banner like \`CAMERACOMMANDER v1.0.x\`.
+    *   Type \`V\` and press enter; it should respond with \`VERSION 1.0.x\`.
 
-3.  **Interactive Tripod Test (Laptop -> Real ESP32):**
-    Identify your serial port (e.g., `/dev/ttyUSB0` or `/dev/cu.usbserial-xxx`).
-    ```bash
+3.  **Interactive Tripod Test (Laptop -> Real ESP):**
+    Identify your serial port (e.g., \`/dev/ttyUSB0\` or \`/dev/cu.usbserial-xxx\`).
+    \`\`\`bash
     cd host
     # Use the tripod REPL for manual control
     uv run cameracommander tripod --port /dev/ttyUSB0
-    ```
-    *   Type `s` to enable motors (listen for the click/hum).
-    *   Type `1 0` to move Pan 1 degree.
-    *   Type `0 1` to move Tilt 1 degree.
-    *   Type `e` to disable motors.
-    *   Type `home` to set the current position as (0,0).
+    \`\`\`
+    *   Type \`s\` to enable motors (listen for the click/hum).
+    *   Type \`1 0\` to move Pan 1 degree.
+    *   Type \`0 1\` to move Tilt 1 degree.
+    *   Type \`e\` to disable motors.
+    *   Type \`home\` to set the current position as (0,0).
 
 ---
 
@@ -124,7 +146,7 @@ Finally, move the "Brain" (the Python host) to your Raspberry Pi.
 
 ## Summary of Small Steps
 1.  **Mocks:** Verify logic on laptop.
-2.  **Flash:** ESP32 is alive? (`pio device monitor`)
-3.  **REPL:** Can I move a motor via CLI? (`uv run cameracommander tripod`)
-4.  **Validate:** Is my YAML job file correct? (`uv run cameracommander validate my-job.yaml`)
-5.  **Deploy:** Sync to Pi and run `serve`.
+2.  **Flash:** ESP board is alive? (\`pio device monitor\`)
+3.  **REPL:** Can I move a motor via CLI? (\`uv run cameracommander tripod\`)
+4.  **Validate:** Is my YAML job file correct? (\`uv run cameracommander validate my-job.yaml\`)
+5.  **Deploy:** Sync to Pi and run \`serve\`.
