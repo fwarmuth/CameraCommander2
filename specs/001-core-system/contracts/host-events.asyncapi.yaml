@@ -1,0 +1,208 @@
+asyncapi: 2.6.0
+info:
+  title: CameraCommander2 Host Event Stream
+  version: 1.0.0
+  description: |
+    WebSocket multiplex for live telemetry. The web UI opens one connection
+    to `/ws/events` and subscribes to topics; the host pushes JSON messages
+    keyed by topic. The single-connection design keeps Pi Zero 2 W resource
+    usage low.
+
+    Wire format: every frame is a JSON object `{ "topic": <string>,
+    "payload": <object> }`. Subscriptions are managed in-band via
+    `{ "action": "subscribe" | "unsubscribe", "topics": [...] }` control
+    frames. The server ignores unknown `action` values and replies with
+    `{ "topic": "control.error", "payload": { "error": "...", "details": {...} } }`.
+
+servers:
+  ws:
+    url: ws://localhost:8000/ws/events
+    protocol: ws
+    description: Local Pi Zero 2 W host (default).
+
+channels:
+  /ws/events:
+    description: Single multiplexed channel; topics are filtered server-side per subscription.
+    bindings:
+      ws:
+        method: GET
+
+    publish:
+      summary: Client → server control frames
+      message:
+        oneOf:
+          - $ref: "#/components/messages/Subscribe"
+          - $ref: "#/components/messages/Unsubscribe"
+
+    subscribe:
+      summary: Server → client telemetry frames
+      message:
+        oneOf:
+          - $ref: "#/components/messages/HardwareStatusEvent"
+          - $ref: "#/components/messages/CalibrationEvent"
+          - $ref: "#/components/messages/JobProgressEvent"
+          - $ref: "#/components/messages/JobStateEvent"
+          - $ref: "#/components/messages/JobFaultEvent"
+          - $ref: "#/components/messages/TripodPositionEvent"
+          - $ref: "#/components/messages/SessionCreatedEvent"
+          - $ref: "#/components/messages/SessionDeletedEvent"
+          - $ref: "#/components/messages/SessionAssemblyEvent"
+          - $ref: "#/components/messages/ControlError"
+
+components:
+  messages:
+    Subscribe:
+      name: subscribe
+      payload:
+        type: object
+        required: [action, topics]
+        properties:
+          action: { type: string, const: subscribe }
+          topics:
+            type: array
+            items:
+              type: string
+              examples:
+                - hardware.status
+                - tripod.position
+                - "job.*"
+                - "job.<uuid>"
+                - "session.*"
+
+    Unsubscribe:
+      name: unsubscribe
+      payload:
+        type: object
+        required: [action, topics]
+        properties:
+          action: { type: string, const: unsubscribe }
+          topics: { type: array, items: { type: string } }
+
+    HardwareStatusEvent:
+      name: hardware.status
+      payload:
+        type: object
+        required: [topic, payload]
+        properties:
+          topic: { type: string, const: hardware.status }
+          payload:
+            $ref: "host-api.openapi.yaml#/components/schemas/HardwareStatus"
+
+    CalibrationEvent:
+      name: hardware.calibration
+      payload:
+        type: object
+        properties:
+          topic: { type: string, const: hardware.calibration }
+          payload:
+            type: object
+            properties:
+              state: { type: string, enum: [unknown, homed] }
+              set_at: { type: string, format: date-time, nullable: true }
+              reason:
+                type: string
+                enum: [homed_by_operator, drivers_disabled, fault, boot]
+
+    TripodPositionEvent:
+      name: tripod.position
+      description: Periodic position broadcast (≤ 1 Hz outside a job; ≤ 4 Hz during a job).
+      payload:
+        type: object
+        properties:
+          topic: { type: string, const: tripod.position }
+          payload:
+            type: object
+            required: [pan_deg, tilt_deg, drivers_enabled, at]
+            properties:
+              pan_deg: { type: number }
+              tilt_deg: { type: number }
+              drivers_enabled: { type: boolean }
+              at: { type: string, format: date-time }
+
+    JobProgressEvent:
+      name: job.progress
+      description: Topic name is `job.<uuid>.progress`.
+      payload:
+        type: object
+        properties:
+          topic: { type: string, pattern: "^job\\.[0-9a-fA-F-]{36}\\.progress$" }
+          payload:
+            allOf:
+              - $ref: "host-api.openapi.yaml#/components/schemas/JobProgress"
+              - type: object
+                properties:
+                  job_id: { type: string, format: uuid }
+
+    JobStateEvent:
+      name: job.state
+      description: Topic name is `job.<uuid>.state`. Emitted on every status change.
+      payload:
+        type: object
+        properties:
+          topic: { type: string, pattern: "^job\\.[0-9a-fA-F-]{36}\\.state$" }
+          payload:
+            $ref: "host-api.openapi.yaml#/components/schemas/Job"
+
+    JobFaultEvent:
+      name: job.fault
+      description: Topic name is `job.<uuid>.fault`. Emitted when status enters `failed` or fault-driven `stopped`.
+      payload:
+        type: object
+        properties:
+          topic: { type: string, pattern: "^job\\.[0-9a-fA-F-]{36}\\.fault$" }
+          payload:
+            $ref: "host-api.openapi.yaml#/components/schemas/FaultEvent"
+
+    SessionCreatedEvent:
+      name: session.created
+      payload:
+        type: object
+        properties:
+          topic: { type: string, const: session.created }
+          payload:
+            $ref: "host-api.openapi.yaml#/components/schemas/SessionSummary"
+
+    SessionDeletedEvent:
+      name: session.deleted
+      payload:
+        type: object
+        properties:
+          topic: { type: string, const: session.deleted }
+          payload:
+            type: object
+            required: [session_id]
+            properties:
+              session_id: { type: string, format: uuid }
+
+    SessionAssemblyEvent:
+      name: session.assemble
+      description: Topic name is `session.<uuid>.assemble`.
+      payload:
+        type: object
+        properties:
+          topic: { type: string, pattern: "^session\\.[0-9a-fA-F-]{36}\\.assemble$" }
+          payload:
+            type: object
+            required: [state]
+            properties:
+              state:
+                type: string
+                enum: [started, frame_progress, completed, failed]
+              frame: { type: integer, nullable: true }
+              total_frames: { type: integer, nullable: true }
+              video_path: { type: string, nullable: true }
+              error: { type: string, nullable: true }
+
+    ControlError:
+      name: control.error
+      payload:
+        type: object
+        properties:
+          topic: { type: string, const: control.error }
+          payload:
+            type: object
+            required: [error, message]
+            properties:
+              error: { type: string }
+              message: { type: string }
+              details: { type: object, additionalProperties: true }

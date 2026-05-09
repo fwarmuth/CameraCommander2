@@ -1,0 +1,953 @@
+openapi: 3.1.0
+info:
+  title: CameraCommander2 Host API
+  version: 1.0.0
+  description: |
+    REST contract exposed by the headless Python host application. The web UI
+    consumes this surface exclusively (Constitution Principle I). The CLI
+    invokes the same underlying services so behaviour is identical.
+
+    All hardware-affecting endpoints are serialised behind a single hardware
+    worker thread. At most one job (timelapse or video pan) runs at a time
+    (FR-039); a second launch returns HTTP 409.
+
+servers:
+  - url: http://localhost:8000
+    description: Local Pi Zero 2 W host (default)
+
+tags:
+  - name: health
+  - name: camera
+  - name: tripod
+  - name: jobs
+  - name: sessions
+
+paths:
+  /api/health:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      operationId: getHealth
+      responses:
+        "200":
+          description: Host is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /api/hardware/status:
+    get:
+      tags: [health]
+      summary: Aggregate hardware status (camera + tripod + calibration)
+      operationId: getHardwareStatus
+      responses:
+        "200":
+          description: Current snapshot. The web UI subscribes to `hardware.status` over WebSocket for live updates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardwareStatus"
+
+  /api/camera/settings:
+    get:
+      tags: [camera]
+      summary: Query all current camera settings
+      operationId: getCameraSettings
+      responses:
+        "200":
+          description: Map of gphoto2 widget paths to current values, types, and choices.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraSettings"
+        "503":
+          $ref: "#/components/responses/CameraUnavailable"
+    put:
+      tags: [camera]
+      summary: Apply a partial camera settings update
+      operationId: putCameraSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CameraSettingsUpdate"
+      responses:
+        "200":
+          description: Settings applied. The response echoes the resulting settings map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraSettings"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/CameraUnavailable"
+
+  /api/camera/capture:
+    post:
+      tags: [camera]
+      summary: Trigger a one-shot still capture (test capture)
+      operationId: postCameraCapture
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureRequest"
+      responses:
+        "200":
+          description: Capture metadata; binary content fetched via `GET /api/camera/captures/{id}`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureResult"
+        "409":
+          description: A running job currently owns the hardware lock.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/CameraUnavailable"
+
+  /api/camera/captures/{capture_id}:
+    get:
+      tags: [camera]
+      summary: Download a previously captured one-shot image
+      operationId: getCaptureFile
+      parameters:
+        - in: path
+          name: capture_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Image bytes; content-type matches the camera output (image/jpeg or vendor RAW).
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/x-canon-cr3: { schema: { type: string, format: binary } }
+            image/x-nikon-nef: { schema: { type: string, format: binary } }
+            application/octet-stream: { schema: { type: string, format: binary } }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/camera/preview:
+    get:
+      tags: [camera]
+      summary: Single-shot live-view preview frame
+      operationId: getCameraPreview
+      responses:
+        "200":
+          description: One JPEG.
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "503":
+          $ref: "#/components/responses/CameraUnavailable"
+
+  /api/camera/preview/stream:
+    get:
+      tags: [camera]
+      summary: Continuous MJPEG preview stream (browser-friendly)
+      description: |
+        Returns `multipart/x-mixed-replace; boundary=frame`. Suitable for an
+        `<img>` tag. Capped server-side to ≤ 5 fps on Pi Zero 2 W to keep CPU
+        below 30 % during preview. Closing the connection stops streaming.
+      operationId: getCameraPreviewStream
+      responses:
+        "200":
+          description: MJPEG stream.
+          content:
+            multipart/x-mixed-replace:
+              schema: { type: string, format: binary }
+        "503":
+          $ref: "#/components/responses/CameraUnavailable"
+
+  /api/tripod/status:
+    get:
+      tags: [tripod]
+      summary: Current tripod state (position, drivers, calibration)
+      operationId: getTripodStatus
+      responses:
+        "200":
+          description: Snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripodStatus"
+        "503":
+          $ref: "#/components/responses/TripodUnavailable"
+
+  /api/tripod/move:
+    post:
+      tags: [tripod]
+      summary: Move to an absolute (pan, tilt) target
+      operationId: postTripodMove
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AbsoluteMoveRequest"
+      responses:
+        "200":
+          description: Move completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripodStatus"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Hardware locked by an active job.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+        "412":
+          description: Calibration is `unknown` (FR-041) and the move is automated. Manual nudges are still allowed via `/api/tripod/nudge`.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+        "422":
+          description: Tilt outside the configured safety window (FR-009).
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+
+  /api/tripod/nudge:
+    post:
+      tags: [tripod]
+      summary: Apply a relative pan / tilt nudge (manual control)
+      operationId: postTripodNudge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelativeNudgeRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripodStatus"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Hardware locked.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+        "422":
+          description: Resulting tilt would exceed the safety window.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+
+  /api/tripod/home:
+    post:
+      tags: [tripod]
+      summary: Set the current physical position as (0°, 0°)
+      description: Software-only homing. Flips calibration state from `unknown` to `homed` (FR-040).
+      operationId: postTripodHome
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripodStatus"
+        "503":
+          $ref: "#/components/responses/TripodUnavailable"
+
+  /api/tripod/drivers:
+    put:
+      tags: [tripod]
+      summary: Enable or disable stepper drivers
+      description: Disabling resets the known position; calibration becomes `unknown` (FR-011).
+      operationId: putTripodDrivers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripodStatus"
+
+  /api/tripod/stop:
+    post:
+      tags: [tripod]
+      summary: Emergency stop — halt all motion immediately (FR-008)
+      operationId: postTripodStop
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripodStatus"
+
+  /api/jobs/timelapse:
+    post:
+      tags: [jobs]
+      summary: Launch a timelapse job
+      operationId: postTimelapseJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Configuration"
+      responses:
+        "201":
+          description: Job accepted; subscribe to `/ws/events` topic `job.<id>.*` for progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Another job is running.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+        "412":
+          description: Calibration required (FR-041).
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+        "503":
+          description: Hardware unavailable (camera or tripod disconnected).
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+
+  /api/jobs/video-pan:
+    post:
+      tags: [jobs]
+      summary: Launch a video-pan job (motion + REC sync, FR-019/020)
+      operationId: postVideoPanJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Configuration"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Another job is running.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+        "412":
+          description: Calibration required.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+
+  /api/jobs/active:
+    get:
+      tags: [jobs]
+      summary: Return the currently running job, if any
+      operationId: getActiveJob
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Job"
+                  - { type: "null" }
+
+  /api/jobs/{job_id}:
+    get:
+      tags: [jobs]
+      summary: Get a job snapshot
+      operationId: getJob
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/jobs/{job_id}/stop:
+    post:
+      tags: [jobs]
+      summary: Cooperative stop (current capture finishes, motion halts)
+      operationId: postJobStop
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/sessions:
+    get:
+      tags: [sessions]
+      summary: List sessions, newest first
+      operationId: getSessions
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: tag
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/SessionSummary" }
+                  total: { type: integer }
+
+  /api/sessions/{session_id}:
+    get:
+      tags: [sessions]
+      summary: Get a session record
+      operationId: getSession
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [sessions]
+      summary: Delete a session and its assets
+      operationId: deleteSession
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Removed.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/sessions/{session_id}/config:
+    get:
+      tags: [sessions]
+      summary: Reload the configuration that produced this session (FR-024)
+      operationId: getSessionConfig
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The exact `Configuration` document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Configuration"
+            application/x-yaml:
+              schema: { type: string }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/sessions/{session_id}/assemble:
+    post:
+      tags: [sessions]
+      summary: Assemble (or re-assemble) the session video (FR-025)
+      operationId: postSessionAssemble
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fps: { type: integer, minimum: 1 }
+                ffmpeg_extra: { type: string }
+                format:
+                  type: string
+                  enum: [mp4-h264, mov-prores, webm-vp9]
+      responses:
+        "202":
+          description: Assembly job started; subscribe to `/ws/events` topic `session.<id>.assemble` for progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Another job (capture or assembly) is running.
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/Error" } }
+
+  /api/sessions/{session_id}/assets/{asset_path}:
+    get:
+      tags: [sessions]
+      summary: Download a session asset (frame, video, metadata)
+      operationId: getSessionAsset
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: asset_path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Asset bytes (content-type per asset).
+          content:
+            "*/*":
+              schema: { type: string, format: binary }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  responses:
+    ValidationError:
+      description: Request body or query failed validation.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource does not exist.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    CameraUnavailable:
+      description: Camera is disconnected or in error state.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TripodUnavailable:
+      description: Tripod is disconnected, in error state, or protocol-incompatible.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Stable machine-readable code (snake_case).
+          examples:
+            - validation_failed
+            - job_already_running
+            - calibration_required
+            - camera_disconnected
+            - tilt_limit_exceeded
+            - protocol_version_mismatch
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+
+    Health:
+      type: object
+      required: [status, version, uptime_s]
+      properties:
+        status: { type: string, enum: [ok] }
+        version: { type: string, description: Host application semver. }
+        uptime_s: { type: number }
+        active_job_id:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+
+    HardwareStatus:
+      type: object
+      required: [camera, tripod, calibration, updated_at]
+      properties:
+        camera: { $ref: "#/components/schemas/CameraStatus" }
+        tripod: { $ref: "#/components/schemas/TripodStatus" }
+        calibration:
+          type: object
+          required: [state]
+          properties:
+            state: { type: string, enum: [unknown, homed] }
+            set_at:
+              oneOf:
+                - { type: string, format: date-time }
+                - { type: "null" }
+        active_job_id:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        updated_at: { type: string, format: date-time }
+
+    CameraStatus:
+      type: object
+      required: [state]
+      properties:
+        state: { type: string, enum: [connected, disconnected, error] }
+        model: { type: string, nullable: true }
+        last_error: { type: string, nullable: true }
+        battery_pct:
+          oneOf:
+            - { type: integer, minimum: 0, maximum: 100 }
+            - { type: "null" }
+
+    CameraSettings:
+      type: object
+      description: Map of gphoto2 widget path → current value/type/choices.
+      additionalProperties:
+        type: object
+        required: [type, current]
+        properties:
+          type:
+            type: string
+            enum: [TEXT, RANGE, TOGGLE, RADIO, MENU, DATE, BUTTON, UNKNOWN]
+          current:
+            description: Current value (string|number|bool|null).
+            oneOf:
+              - { type: string }
+              - { type: number }
+              - { type: boolean }
+              - { type: "null" }
+          choices:
+            oneOf:
+              - { type: array, items: { type: string } }
+              - { type: "null" }
+          range:
+            type: object
+            nullable: true
+            properties:
+              min: { type: number }
+              max: { type: number }
+              step: { type: number }
+
+    CameraSettingsUpdate:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          type: object
+          additionalProperties:
+            oneOf:
+              - { type: string }
+              - { type: number }
+              - { type: boolean }
+        step_policy:
+          type: string
+          enum: [strict, snap]
+          default: strict
+
+    CaptureRequest:
+      type: object
+      properties:
+        autofocus:
+          type: boolean
+          default: false
+          description: When `false`, skip the AF motor (matches `capture_image_no_af`).
+        save_to_session:
+          oneOf:
+            - { type: string, format: uuid, description: "Existing session_id" }
+            - { type: "null" }
+          description: Optional — store the test capture as an asset on a session.
+
+    CaptureResult:
+      type: object
+      required: [capture_id, content_type, captured_at, size_bytes]
+      properties:
+        capture_id: { type: string, format: uuid }
+        content_type: { type: string }
+        captured_at: { type: string, format: date-time }
+        size_bytes: { type: integer }
+        download_url:
+          type: string
+          format: uri-reference
+          description: Path to fetch the binary (`/api/camera/captures/{id}`).
+
+    TripodStatus:
+      type: object
+      required: [state, drivers_enabled, position_pan_deg, position_tilt_deg]
+      properties:
+        state: { type: string, enum: [connected, disconnected, error] }
+        firmware_version: { type: string, nullable: true }
+        protocol_compatible: { type: boolean, default: true }
+        drivers_enabled: { type: boolean }
+        position_pan_deg: { type: number }
+        position_tilt_deg: { type: number }
+        tilt_min_deg: { type: number, nullable: true }
+        tilt_max_deg: { type: number, nullable: true }
+        last_error: { type: string, nullable: true }
+
+    AbsoluteMoveRequest:
+      type: object
+      required: [pan_deg, tilt_deg]
+      properties:
+        pan_deg: { type: number }
+        tilt_deg: { type: number }
+
+    RelativeNudgeRequest:
+      type: object
+      properties:
+        delta_pan_deg: { type: number, default: 0 }
+        delta_tilt_deg: { type: number, default: 0 }
+
+    Configuration:
+      type: object
+      description: |
+        Full session configuration. See `contracts/config-schema.md` for the
+        annotated YAML form. The same shape is accepted as YAML on filesystem
+        and as JSON over HTTP.
+      required: [metadata, camera, tripod, safety, output, sequence]
+      properties:
+        metadata: { $ref: "#/components/schemas/ConfigurationMetadata" }
+        camera: { $ref: "#/components/schemas/CameraConfig" }
+        tripod: { $ref: "#/components/schemas/TripodConfig" }
+        safety: { $ref: "#/components/schemas/SafetyConfig" }
+        output: { $ref: "#/components/schemas/OutputConfig" }
+        sequence:
+          oneOf:
+            - { $ref: "#/components/schemas/TimelapseSequenceConfig" }
+            - { $ref: "#/components/schemas/VideoPanSequenceConfig" }
+          discriminator:
+            propertyName: kind
+            mapping:
+              timelapse: "#/components/schemas/TimelapseSequenceConfig"
+              video_pan: "#/components/schemas/VideoPanSequenceConfig"
+
+    ConfigurationMetadata:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        tags:
+          type: array
+          items: { type: string, maxLength: 40 }
+          maxItems: 16
+        created_at: { type: string, format: date-time }
+
+    CameraConfig:
+      type: object
+      properties:
+        model_substring: { type: string }
+        settings:
+          type: object
+          additionalProperties:
+            oneOf:
+              - { type: string }
+              - { type: number }
+              - { type: boolean }
+        image_format:
+          type: string
+          enum: [camera-default, jpeg-only, raw-only, raw+jpeg]
+          default: camera-default
+
+    TripodConfig:
+      type: object
+      required: [serial]
+      properties:
+        serial:
+          type: object
+          required: [port]
+          properties:
+            port: { type: string, description: "Path or socket:// URL" }
+            baudrate: { type: integer, default: 9600 }
+            timeout: { type: number, default: 1.0 }
+            write_timeout: { type: number, default: 1.0 }
+            reconnect_interval: { type: number, default: 2.0 }
+            max_retries: { type: integer, default: 5 }
+        microstep:
+          type: integer
+          enum: [1, 2, 4, 8, 16]
+          default: 16
+        expected_protocol_major:
+          type: integer
+          default: 1
+
+    SafetyConfig:
+      type: object
+      required: [tilt_min_deg, tilt_max_deg]
+      properties:
+        tilt_min_deg: { type: number }
+        tilt_max_deg: { type: number }
+        move_timeout_margin_s: { type: number, default: 2.0, minimum: 0 }
+        disk_min_free_bytes: { type: integer, default: 200000000, minimum: 0 }
+        disk_avg_frame_bytes: { type: integer, default: 20000000, minimum: 0 }
+
+    OutputConfig:
+      type: object
+      required: [output_dir]
+      properties:
+        output_dir: { type: string }
+        frame_filename_template:
+          type: string
+          default: "frame_{index:04d}{ext}"
+        metadata_strategy:
+          type: string
+          enum: [exif, csv, auto]
+          default: auto
+        video:
+          type: object
+          properties:
+            assemble: { type: boolean, default: true }
+            fps: { type: integer, default: 25, minimum: 1 }
+            format: { type: string, enum: [mp4-h264, mov-prores, webm-vp9], default: mp4-h264 }
+            ffmpeg_extra: { type: string }
+
+    TimelapseSequenceConfig:
+      type: object
+      required: [kind, total_frames, interval_s, settle_time_s, start, target]
+      properties:
+        kind: { type: string, const: timelapse }
+        total_frames: { type: integer, minimum: 2 }
+        interval_s: { type: number, exclusiveMinimum: 0 }
+        settle_time_s: { type: number, minimum: 0 }
+        start:
+          $ref: "#/components/schemas/Angles"
+        target:
+          $ref: "#/components/schemas/Angles"
+
+    VideoPanSequenceConfig:
+      type: object
+      required: [kind, duration_s, start, target]
+      properties:
+        kind: { type: string, const: video_pan }
+        duration_s: { type: number, exclusiveMinimum: 0 }
+        start:
+          $ref: "#/components/schemas/Angles"
+        target:
+          $ref: "#/components/schemas/Angles"
+
+    Angles:
+      type: object
+      required: [pan_deg, tilt_deg]
+      properties:
+        pan_deg: { type: number }
+        tilt_deg: { type: number }
+
+    Job:
+      type: object
+      required: [job_id, kind, status, created_at]
+      properties:
+        job_id: { type: string, format: uuid }
+        kind: { type: string, enum: [timelapse, video_pan] }
+        status:
+          type: string
+          enum: [pending, running, completed, failed, stopped]
+        created_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time, nullable: true }
+        finished_at: { type: string, format: date-time, nullable: true }
+        progress: { $ref: "#/components/schemas/JobProgress" }
+        last_position:
+          $ref: "#/components/schemas/Angles"
+        fault: { $ref: "#/components/schemas/FaultEvent", nullable: true }
+        cadence_warnings: { type: integer, default: 0 }
+        session_id: { type: string, format: uuid, nullable: true }
+
+    JobProgress:
+      type: object
+      properties:
+        frames_completed: { type: integer, minimum: 0 }
+        frames_total: { type: integer, minimum: 0 }
+        motion_pct: { type: number, minimum: 0, maximum: 1 }
+        estimated_finish_at: { type: string, format: date-time, nullable: true }
+
+    FaultEvent:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - camera_disconnected
+            - camera_capture_failed
+            - motor_stall
+            - serial_lost
+            - disk_full
+            - tilt_limit
+            - calibration_required
+            - config_invalid
+            - user_stopped
+        message: { type: string }
+        frame_index: { type: integer, nullable: true }
+        last_position: { $ref: "#/components/schemas/Angles", nullable: true }
+        recoverable: { type: boolean, default: false }
+
+    SessionSummary:
+      type: object
+      required: [session_id, kind, created_at, status]
+      properties:
+        session_id: { type: string, format: uuid }
+        kind: { type: string, enum: [timelapse, video_pan] }
+        status: { type: string, enum: [completed, failed, stopped] }
+        created_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time, nullable: true }
+        name: { type: string }
+        tags: { type: array, items: { type: string } }
+        frames_captured: { type: integer }
+        frames_planned: { type: integer }
+        flags:
+          type: object
+          additionalProperties: { type: boolean }
+
+    Session:
+      allOf:
+        - $ref: "#/components/schemas/SessionSummary"
+        - type: object
+          required: [configuration, assets]
+          properties:
+            configuration: { $ref: "#/components/schemas/Configuration" }
+            assets:
+              type: array
+              items: { $ref: "#/components/schemas/SessionAsset" }
+            fault: { $ref: "#/components/schemas/FaultEvent", nullable: true }
+
+    SessionAsset:
+      type: object
+      required: [path, kind]
+      properties:
+        path: { type: string }
+        kind: { type: string, enum: [frame, video, metadata, preview] }
+        size_bytes: { type: integer, nullable: true }
+        content_type: { type: string, nullable: true }
+        label: { type: string, nullable: true }
