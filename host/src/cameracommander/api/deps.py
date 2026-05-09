@@ -25,16 +25,15 @@ class AppContainer:
     safety: Any = None
 
 
-from typing import Union
-from fastapi import Request, WebSocket
+from starlette.requests import HTTPConnection
 
-def get_container(request: Union[Request, WebSocket]) -> AppContainer:
-    return request.app.state.container
-
-
-def get_event_bus(request: Union[Request, WebSocket]) -> EventBus:
-    return get_container(request).bus
+def get_container(conn: HTTPConnection) -> AppContainer:
+    return conn.app.state.container
 
 
-def get_job_manager(request: Union[Request, WebSocket]) -> Any:
-    return get_container(request).jobs
+def get_event_bus(conn: HTTPConnection) -> EventBus:
+    return get_container(conn).bus
+
+
+def get_job_manager(conn: HTTPConnection) -> Any:
+    return get_container(conn).jobs
