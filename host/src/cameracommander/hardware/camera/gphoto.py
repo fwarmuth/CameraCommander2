@@ -175,7 +175,8 @@ class GphotoCameraAdapter:
 
     def _preview_blocking(self) -> bytes:
         gp, camera = self._require_camera()
-        camera_file = gp.check_result(gp.gp_camera_capture_preview(camera, self._context))
+        camera_file = gp.check_result(gp.gp_file_new())
+        gp.check_result(gp.gp_camera_capture_preview(camera, camera_file, self._context))
         return bytes(gp.check_result(gp.gp_file_get_data_and_size(camera_file)))
 
     def _capture_blocking(self, autofocus: bool) -> CaptureResult:
