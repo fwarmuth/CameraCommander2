@@ -29,34 +29,44 @@ class GphotoCameraAdapter:
         self._model: str | None = None
         self._port_path: str | None = None
         self._last_error: str | None = None
+        self._lock = asyncio.Lock()
 
     async def open(self) -> None:
-        await asyncio.to_thread(self._open_blocking)
+        async with self._lock:
+            await asyncio.to_thread(self._open_blocking)
 
     async def close(self) -> None:
-        await asyncio.to_thread(self._close_blocking)
+        async with self._lock:
+            await asyncio.to_thread(self._close_blocking)
 
     async def status(self) -> CameraStatus:
+        # This method is read-only for local state, no lock needed
         state = CameraState.connected if self._camera is not None else CameraState.disconnected
         return CameraStatus(state=state, model=self._model, last_error=self._last_error)
 
     async def query_settings(self) -> dict[str, SettingDescriptor]:
-        return await asyncio.to_thread(self._query_settings_blocking)
+        async with self._lock:
+            return await asyncio.to_thread(self._query_settings_blocking)
 
     async def apply_settings(self, settings: dict[str, str | int | float | bool]) -> None:
-        await asyncio.to_thread(self._apply_settings_blocking, settings)
+        async with self._lock:
+            await asyncio.to_thread(self._apply_settings_blocking, settings)
 
     async def capture_still(self, *, autofocus: bool = False) -> CaptureResult:
-        return await asyncio.to_thread(self._capture_blocking, autofocus)
+        async with self._lock:
+            return await asyncio.to_thread(self._capture_blocking, autofocus)
 
     async def start_recording(self) -> None:
+        # apply_settings handles its own lock
         await self.apply_settings({"main.actions.movie": 1})
 
     async def stop_recording(self) -> None:
+        # apply_settings handles its own lock
         await self.apply_settings({"main.actions.movie": 0})
 
     async def preview_frame_jpeg(self) -> bytes:
-        return await asyncio.to_thread(self._preview_blocking)
+        async with self._lock:
+            return await asyncio.to_thread(self._preview_blocking)
 
     async def preview_stream(self) -> AsyncIterator[bytes]:
         async def _stream() -> AsyncIterator[bytes]:
