@@ -51,7 +51,7 @@ class TripodPositionPublisher:
                         "drivers_enabled": status.drivers_enabled,
                     },
                 )
-            interval_s = 0.25 if self.jobs.active() is not None else 1.0
+            interval_s = 0.25 if self.jobs.active_job_id is not None else 1.0
             await asyncio.sleep(interval_s)
 
 

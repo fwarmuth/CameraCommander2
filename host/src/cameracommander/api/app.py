@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..hardware.camera.base import CameraAdapter
 from ..hardware.tripod.base import TripodAdapter
+from ..core.logging import logger
 from .deps import AppContainer
 from .websocket import EventBus
 
@@ -28,6 +29,7 @@ def create_app(
 ) -> FastAPI:
     """Factory to create the FastAPI application instance."""
 
+    logger.info("creating app with camera={}, tripod={}", camera is not None, tripod is not None)
     bus = EventBus()
     from ..persistence.sessions_fs import SessionRepository
     from ..services.calibration import CalibrationService
@@ -37,6 +39,8 @@ def create_app(
 
     if session_root is None:
         session_root = Path.home() / ".cameracommander" / "sessions"
+
+    from ..services.tripod_polling import TripodPositionPublisher
 
     calibration = CalibrationService(bus)
     safety = SafetyService(tilt_min=-90, tilt_max=90)  # Default
@@ -51,6 +55,8 @@ def create_app(
         safety=safety,
         disk=disk,
     )
+
+    publisher = TripodPositionPublisher(tripod=tripod, jobs=jobs, event_bus=bus)
 
     container = AppContainer(
         camera=camera,
@@ -69,10 +75,12 @@ def create_app(
             await container.camera.open()
         if container.tripod:
             await container.tripod.open()
+            publisher.start()
 
         yield
 
         # Cleanup hardware
+        await publisher.stop()
         if container.camera:
             await container.camera.close()
         if container.tripod:
