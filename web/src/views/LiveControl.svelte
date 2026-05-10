@@ -5,8 +5,8 @@
   import type { CameraSettings } from "../lib/api/types";
   import { hardwareStatus, refreshStatus } from "../lib/stores";
 
-  let settings: CameraSettings = {};
-  let pending: Record<string, string | number | boolean> = {};
+  let settings: CameraSettings = $state({});
+  let pending: Record<string, string | number | boolean> = $state({});
   let search = $state("");
   let stepDeg = $state(1);
   let autofocus = $state(false);
@@ -25,17 +25,19 @@
     "main.capturesettings.focusmode",
   ];
 
-  $: cameraFault =
-    $hardwareStatus?.camera.state === "error" || $hardwareStatus?.camera.state === "disconnected";
-  $: tripodFault =
-    $hardwareStatus?.tripod.state === "error" || $hardwareStatus?.tripod.state === "disconnected";
-  $: tiltMin = $hardwareStatus?.tripod.tilt_min_deg ?? -90;
-  $: tiltMax = $hardwareStatus?.tripod.tilt_max_deg ?? 90;
-  $: currentTilt = $hardwareStatus?.tripod.position_tilt_deg ?? 0;
-  $: canTiltDown = currentTilt - stepDeg >= tiltMin;
-  $: canTiltUp = currentTilt + stepDeg <= tiltMax;
+  let cameraFault = $derived(
+    $hardwareStatus?.camera.state === "error" || $hardwareStatus?.camera.state === "disconnected"
+  );
+  let tripodFault = $derived(
+    $hardwareStatus?.tripod.state === "error" || $hardwareStatus?.tripod.state === "disconnected"
+  );
+  let tiltMin = $derived($hardwareStatus?.tripod.tilt_min_deg ?? -90);
+  let tiltMax = $derived($hardwareStatus?.tripod.tilt_max_deg ?? 90);
+  let currentTilt = $derived($hardwareStatus?.tripod.position_tilt_deg ?? 0);
+  let canTiltDown = $derived(currentTilt - stepDeg >= tiltMin);
+  let canTiltUp = $derived(currentTilt + stepDeg <= tiltMax);
 
-  $: groups = Object.keys(settings).reduce(
+  let groups = $derived(Object.keys(settings).reduce(
     (acc, key) => {
       if (search && !key.toLowerCase().includes(search.toLowerCase())) return acc;
       
@@ -50,9 +52,9 @@
       return acc;
     },
     {} as Record<string, Record<string, string[]>>,
-  );
+  ));
 
-  $: tabs = ["Planning", ...Object.keys(groups).sort()];
+  let tabs = $derived(["Planning", ...Object.keys(groups).sort()]);
 
   function getSubGroups(tab: string): Record<string, string[]> {
     if (tab === "Planning") {
@@ -153,7 +155,7 @@
     } else {
       collapsedGroups.add(group);
     }
-    collapsedGroups = collapsedGroups; // Trigger reactivity
+    collapsedGroups = new Set(collapsedGroups); // Trigger reactivity in Svelte 5
   }
 
   onMount(() => {
