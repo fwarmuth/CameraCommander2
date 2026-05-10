@@ -121,6 +121,10 @@ class DriverRequest(BaseModel):
     enabled: bool
 
 
+class FocusNudgeRequest(BaseModel):
+    step_size: int = Field(ge=-3, le=3)
+
+
 SequenceConfig = Annotated[
     TimelapseSequenceConfig | VideoPanSequenceConfig, Field(discriminator="kind")
 ]
@@ -224,6 +228,7 @@ __all__ = [
     "Configuration",
     "ConfigurationMetadata",
     "DriverRequest",
+    "FocusNudgeRequest",
     "HostConfig",
     "OutputConfig",
     "RelativeNudgeRequest",
