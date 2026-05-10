@@ -36,7 +36,7 @@
   $: groups = Object.keys(settings).reduce(
     (acc, key) => {
       const parts = key.split(".");
-      const groupName = parts.length > 1 ? parts[1] : "other";
+      const groupName = parts.slice(0, -1).join(".");
       if (!acc[groupName]) acc[groupName] = [];
       acc[groupName].push(key);
       return acc;
@@ -45,6 +45,20 @@
   );
 
   $: tabs = ["Planning", ...Object.keys(groups).sort()];
+
+  async function toggleDrivers(): Promise<void> {
+    if (!$hardwareStatus?.tripod) return;
+    busy = true;
+    try {
+      await api.setTripodDrivers(!$hardwareStatus.tripod.drivers_enabled);
+      await refreshStatus();
+      message = `Tripod drivers ${$hardwareStatus.tripod.drivers_enabled ? "enabled" : "disabled"}.`;
+    } catch (error) {
+      message = describe(error, "Failed to toggle drivers");
+    } finally {
+      busy = false;
+    }
+  }
 
   function getActiveKeys(tab: string): string[] {
     if (tab === "Planning") {
@@ -148,12 +162,12 @@
       <nav class="mt-6 flex gap-1 overflow-x-auto rounded-2xl bg-stone-100 p-1">
         {#each tabs as tab}
           <button
-            class={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+            class={`whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition ${
               activeTab === tab ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
             }`}
             on:click={() => (activeTab = tab)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === "Planning" ? "Planning" : tab.replace("main.", "")}
           </button>
         {/each}
       </nav>
@@ -172,6 +186,11 @@
                   <option value={choice}>{choice}</option>
                 {/each}
               </select>
+            {:else if descriptor.type === 'RANGE'}
+              <div class="flex items-center gap-2">
+                 <input type="range" class="grow" min={descriptor.range?.min} max={descriptor.range?.max} step={descriptor.range?.step} bind:value={pending[key]} />
+                 <span class="text-xs w-8 text-right">{pending[key]}</span>
+              </div>
             {:else}
               <input class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]} />
             {/if}
@@ -202,9 +221,19 @@
     {/if}
 
     <dl class="mt-5 grid gap-3 text-sm">
-      <div class="rounded-2xl bg-stone-100 p-3">
-        <dt class="font-bold">Position</dt>
-        <dd>{($hardwareStatus?.tripod.position_pan_deg ?? 0).toFixed(2)} pan / {currentTilt.toFixed(2)} tilt</dd>
+      <div class="rounded-2xl bg-stone-100 p-3 flex justify-between items-center">
+        <div>
+           <dt class="font-bold">Position</dt>
+           <dd>{($hardwareStatus?.tripod.position_pan_deg ?? 0).toFixed(2)} pan / {currentTilt.toFixed(2)} tilt</dd>
+        </div>
+        <button
+          class={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+            $hardwareStatus?.tripod.drivers_enabled ? "bg-green-500 text-white" : "bg-stone-300 text-stone-600"
+          }`}
+          on:click={toggleDrivers}
+        >
+          Drivers: {$hardwareStatus?.tripod.drivers_enabled ? "ON" : "OFF"}
+        </button>
       </div>
       <div class="rounded-2xl bg-stone-100 p-3">
         <dt class="font-bold">Tilt window</dt>

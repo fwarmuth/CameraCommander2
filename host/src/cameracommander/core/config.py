@@ -107,6 +107,16 @@ class VideoPanSequenceConfig(BaseModel):
     target: Angles
 
 
+class AbsoluteMoveRequest(BaseModel):
+    pan_deg: float
+    tilt_deg: float
+
+
+class RelativeNudgeRequest(BaseModel):
+    delta_pan_deg: float = 0.0
+    delta_tilt_deg: float = 0.0
+
+
 SequenceConfig = Annotated[
     TimelapseSequenceConfig | VideoPanSequenceConfig, Field(discriminator="kind")
 ]
@@ -202,12 +212,14 @@ def dump_configuration(config: Configuration) -> str:
 
 
 __all__ = [
+    "AbsoluteMoveRequest",
     "Angles",
     "CameraConfig",
     "Configuration",
     "ConfigurationMetadata",
     "HostConfig",
     "OutputConfig",
+    "RelativeNudgeRequest",
     "SafetyConfig",
     "SequenceConfig",
     "SerialConfig",

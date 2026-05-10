@@ -1,15 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { hardwareStatus } from "./lib/stores";
+
+  import { calibration, hardwareStatus, refreshStatus, startEventStream } from "./lib/stores";
   import LiveControl from "./views/LiveControl.svelte";
-  import Planner from "./views/Planner.svelte";
-  import Monitor from "./views/Monitor.svelte";
   import Library from "./views/Library.svelte";
+  import Monitor from "./views/Monitor.svelte";
+  import Planner from "./views/Planner.svelte";
 
   let view = $state("live");
 
-  onMount(async () => {
-    // Initial fetch
+  onMount(() => {
+    void refreshStatus();
+    startEventStream();
   });
 </script>
 
@@ -17,8 +19,18 @@
   <header class="bg-stone-900 px-6 py-4 text-white flex justify-between items-center">
     <h1 class="text-xl font-bold tracking-tight">CameraCommander2</h1>
     <div class="flex gap-4 text-xs uppercase tracking-widest font-bold">
-      <span class="text-stone-400">Cam: <span class="text-green-400">Connected</span></span>
-      <span class="text-stone-400">Tripod: <span class="text-green-400">Homed</span></span>
+      <span class="text-stone-400">
+        Cam:
+        <span class={$hardwareStatus?.camera.state === "connected" ? "text-green-400" : "text-red-400"}>
+          {$hardwareStatus?.camera.state ?? "disconnected"}
+        </span>
+      </span>
+      <span class="text-stone-400">
+        Tripod:
+        <span class={$calibration === "homed" ? "text-green-400" : "text-amber-400"}>
+          {$calibration}
+        </span>
+      </span>
     </div>
   </header>
 

@@ -164,9 +164,12 @@ class GphotoCameraAdapter:
         from datetime import datetime
         import uuid
         
-        # This is a simplified capture, should actually transfer the file
+        # Trigger capture
         path = gp.check_result(gp.gp_camera_capture(self._camera, gp.GP_CAPTURE_IMAGE, self._context))
-        camera_file = gp.check_result(gp.gp_camera_file_get(self._camera, path.folder, path.name, gp.GP_FILE_TYPE_NORMAL, self._context))
+        
+        # Download from camera
+        camera_file = gp.check_result(gp.gp_file_new())
+        gp.check_result(gp.gp_camera_file_get(self._camera, path.folder, path.name, gp.GP_FILE_TYPE_NORMAL, camera_file, self._context))
         data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
         
         return CaptureResult(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from ...core.config import AbsoluteMoveRequest, RelativeNudgeRequest
 from ...core.models import TripodStatus
 from ..deps import AppContainer, get_container
 
@@ -16,8 +17,7 @@ async def get_tripod_status(container: AppContainer = Depends(get_container)):
 
 @router.post("/nudge")
 async def post_tripod_nudge(
-    delta_pan: float = 0.0,
-    delta_tilt: float = 0.0,
+    req: RelativeNudgeRequest,
     container: AppContainer = Depends(get_container),
 ):
     if container.tripod is None:
@@ -25,13 +25,14 @@ async def post_tripod_nudge(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="no tripod connected",
         )
-    return await container.tripod.nudge(delta_pan_deg=delta_pan, delta_tilt_deg=delta_tilt)
+    return await container.tripod.nudge(
+        delta_pan_deg=req.delta_pan_deg, delta_tilt_deg=req.delta_tilt_deg
+    )
 
 
 @router.post("/move")
 async def post_tripod_move(
-    pan: float,
-    tilt: float,
+    req: AbsoluteMoveRequest,
     container: AppContainer = Depends(get_container),
 ):
     if container.tripod is None:
@@ -44,8 +45,8 @@ async def post_tripod_move(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail="calibration_required",
         )
-    container.safety.guard_move(pan, tilt)
-    return await container.tripod.move_to(pan, tilt)
+    container.safety.guard_move(req.pan_deg, req.tilt_deg)
+    return await container.tripod.move_to(req.pan_deg, req.tilt_deg)
 
 
 @router.post("/stop")
