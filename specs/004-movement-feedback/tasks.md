@@ -1,50 +1,86 @@
 # Tasks: Movement Feedback and Increased Timeout
 
 **Input**: Design documents from `specs/004-movement-feedback/`
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
+**Prerequisites**: plan.md (required), spec.md (required for user stories)
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup
 
-- [ ] T001 Finalize updated protocol contract in `specs/004-movement-feedback/contracts/firmware-protocol.md`
+- [ ] T001 Finalize project structure and verify ignore files per plan.md
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational
 
-- [ ] T002 [P] Add `PROGRESS`, `ESTIMATE`, and `ERR AlreadyAtTarget` constants to `firmware/src/protocol.h`
-- [ ] T003 [P] Implement `ProgressReply` and `EstimateReply` and update `parse_reply` in `host/src/cameracommander/hardware/tripod/protocol.py`
-- [ ] T004 [P] Update unit tests in `host/tests/unit/hardware/tripod/test_protocol.py` for new reply types
+**Goal**: Establish the protocol v1.1 constants and parser support.
+
+- [ ] T002 [P] Add `PROGRESS`, `ESTIMATE`, and new error constants to `firmware/src/protocol.h`
+- [ ] T003 [P] Implement `ProgressReply` and `EstimateReply` data classes in `host/src/cameracommander/hardware/tripod/protocol.py`
+- [ ] T004 [P] Update `parse_reply` and `ErrorReply` literal in `host/src/cameracommander/hardware/tripod/protocol.py`
+- [ ] T005 [P] Update contract tests in `host/tests/contract/test_firmware_protocol.py` to cover new reply types
 
 ---
 
 ## Phase 3: User Story 1 - Prevent Timeouts (P1) 🎯 MVP
 
-- [ ] T005 [P] [US1] Refactor firmware `move_absolute` in `firmware/src/main.cpp` to use a non-blocking state machine
-- [ ] T006 [P] [US1] Implement periodic `PROGRESS` emission in firmware during motion
-- [ ] T007 [P] [US1] Update `_send_blocking` in `host/src/cameracommander/hardware/tripod/serial_adapter.py` to recognize `ProgressReply` and refresh the `deadline`
-- [ ] T008 [P] [US1] Update `host/src/cameracommander/mock_firmware/server.py` to simulate `PROGRESS` messages
-- [ ] T009 [US1] Create integration test `host/tests/integration/test_movement_timeout.py`
+**Goal**: Ensure long movements do not trigger `MotorStallError` by using `PROGRESS` messages to refresh the watchdog.
+
+**Independent Test**: Execute a movement command that exceeds the default serial timeout (e.g., 5 seconds) and verify it completes successfully without error against mock firmware.
+
+- [ ] T006 [P] [US1] Refactor firmware `move_absolute` to a non-blocking state machine in `firmware/src/main.cpp`
+- [ ] T007 [P] [US1] Implement periodic `PROGRESS` emission (5Hz) in `firmware/src/main.cpp` during the moving state
+- [ ] T008 [P] [US1] Update `SerialTripodAdapter._send_blocking` to refresh the `deadline` upon receiving `ProgressReply` in `host/src/cameracommander/hardware/tripod/serial_adapter.py`
+- [ ] T009 [P] [US1] Update `MockFirmwareServer` to simulate the non-blocking moving state and periodic `PROGRESS` messages in `host/src/cameracommander/mock_firmware/server.py`
+- [ ] T010 [US1] Create integration test for long movement timeouts in `host/tests/integration/test_movement_timeout.py`
 
 ---
 
 ## Phase 4: User Story 2 - Real-time Movement Progress (P2)
 
-- [ ] T010 [P] [US2] Add `progress_callback` support to `SerialTripodAdapter.move_to` and `_send` in `host/src/cameracommander/hardware/tripod/serial_adapter.py`
-- [ ] T011 [US2] Update `_run_repl` in `host/src/cameracommander/cli/commands/tripod.py` to use a callback that overwrites a single line in-place
+**Goal**: Display current pan/tilt position in the CLI during movement using an in-place overwritten line.
+
+**Independent Test**: Watch the `tripod` CLI output during a move and confirm the position line updates dynamically and finishes on the same line.
+
+- [ ] T011 [P] [US2] Add `progress_callback` support to `SerialTripodAdapter.move_to` and `_send` in `host/src/cameracommander/hardware/tripod/serial_adapter.py`
+- [ ] T012 [US2] Implement progress callback in `tripod.py` that overwrites a single line using `\r` in `host/src/cameracommander/cli/commands/tripod.py`
 
 ---
 
 ## Phase 5: User Story 3 - Estimated Time of Completion (P3)
 
-- [ ] T012 [P] [US3] Implement `ESTIMATE` emission in firmware at the start of `M` command
-- [ ] T013 [P] [US3] Update `SerialTripodAdapter` to capture `EstimateReply` and pass it to the progress callback
-- [ ] T014 [US3] Update `tripod` CLI to display the estimate from the firmware
+**Goal**: Display the firmware-calculated duration estimate at the start of a move.
+
+**Independent Test**: Verify the CLI shows "Move started (est. Xs)..." immediately after issuing a `to` or nudge command.
+
+- [ ] T013 [P] [US3] Implement duration estimation logic and `ESTIMATE` emission in `firmware/src/main.cpp`
+- [ ] T014 [P] [US3] Update `MockFirmwareServer` to emit `ESTIMATE` at the start of a move in `host/src/cameracommander/mock_firmware/server.py`
+- [ ] T015 [US3] Update progress callback to handle `EstimateReply` and display remaining time in `host/src/cameracommander/cli/commands/tripod.py`
 
 ---
 
-## Phase 6: Edge Cases & Polish
+## Phase 6: Polish & Cross-cutting Concerns
 
-- [ ] T015 [P] Implement `ERR AlreadyAtTarget` in firmware and handle in host
-- [ ] T016 [P] Implement `ERR MotorStall` in firmware and handle in host
-- [ ] T017 [P] Verify `X` (Emergency Stop) works during motion
-- [ ] T018 Run all host and firmware tests
+- [ ] T016 [P] Implement `ERR AlreadyAtTarget` logic in `firmware/src/main.cpp` and handle in CLI
+- [ ] T017 [P] Implement `ERR MotorStall` logic in `firmware/src/main.cpp` and handle in host
+- [ ] T018 [P] Verify Emergency Stop (`X`) correctly interrupts moves in progress
+- [ ] T019 Final verification: Run all host tests (`uv run pytest host/tests`)
+- [ ] T020 Final verification: Run firmware native tests (`pio test -e native`)
+
+---
+
+## Dependencies & Execution Order
+
+- **Foundational (Phase 2)** must be completed before any US-specific work.
+- **US1 (Phase 3)** is the MVP and should be prioritized.
+- **US2 (Phase 4)** and **US3 (Phase 5)** both depend on the `PROGRESS` and `ESTIMATE` messages defined in Phase 2.
+
+### Parallel Opportunities
+
+- Firmware work (T002, T006, T007) and Host work (T003, T004, T008) can proceed in parallel once the contract is finalized.
+- Mock server updates (T009) can happen alongside firmware refactoring.
+
+## Implementation Strategy
+
+1.  **Contract First**: Ensure `protocol.h` and `protocol.py` are in sync with the updated contract.
+2.  **State Machine**: Focus on the firmware refactor first, as it enables all other features.
+3.  **Adaptive Timeout**: Verify the timeout bug fix with integration tests before adding UI layers.
+4.  **UI Feedback**: Add the CLI enhancements incrementally once the data is flowing.

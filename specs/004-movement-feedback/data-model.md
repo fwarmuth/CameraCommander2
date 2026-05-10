@@ -3,17 +3,34 @@
 ## Entities
 
 ### ProgressReply (Protocol)
-- **pan_deg**: float (current absolute pan position)
-- **tilt_deg**: float (current absolute tilt position)
+Represents an intermediate position report from the firmware.
+- **pan_deg**: float (absolute pan in degrees)
+- **tilt_deg**: float (absolute tilt in degrees)
 
-### MoveResult (Host)
-- **pan_deg**: float (final position)
-- **tilt_deg**: float (final position)
-- **duration_s**: float (actual time taken)
+### EstimateReply (Protocol)
+Represents the firmware's calculation of move duration.
+- **seconds**: float (expected time to complete the move)
+
+### MoveResult (Host Service Layer)
+Updated to include estimated vs actual duration.
+- **pan_deg**: float (final absolute pan)
+- **tilt_deg**: float (final absolute tilt)
+- **estimated_duration_s**: float (from EstimateReply)
+- **actual_duration_s**: float (measured by host)
 
 ## State Transitions
-During an `M` command:
-1. **Idle**: Waiting for command.
-2. **Moving**: Emitting `PROGRESS` messages.
-3. **Done**: Emitting `DONE`.
-4. **Error**: Emitting `ERR ...` or timing out.
+
+### Firmware Motion State Machine
+1. **Idle**: Motors stopped, listening for commands.
+2. **Receiving Move**: `M` command received.
+   - Calculate duration → Emit `ESTIMATE`.
+   - If at target → Emit `ERR AlreadyAtTarget`, return to **Idle**.
+   - Start motors → Transition to **Moving**.
+3. **Moving**: Motors running.
+   - Every 200ms → Emit `PROGRESS`.
+   - `X` received → Stop motors, emit `OK STOP`, return to **Idle**.
+   - `S` received → Emit `STATUS`, remain in **Moving**.
+   - Target reached → Transition to **Settling**.
+   - Stall detected → Emit `ERR MotorStall`, return to **Idle**.
+4. **Settling**: Motors stopped, waiting for vibrations to dampen.
+   - After `SETTLE_DELAY_MS` → Emit `DONE`, return to **Idle**.

@@ -15,18 +15,18 @@ This feature addresses the movement timeout issue by refactoring the firmware to
 **Testing**: `pytest` (Host), `unity` (Firmware native tests)  
 **Target Platform**: ESP8266/ESP32 (Tripod), Linux (Host)
 **Project Type**: Embedded + CLI  
-**Performance Goals**: 5-10Hz progress updates (every 100-200ms)  
-**Constraints**: Must maintain backward compatibility with v1.x protocol; older hosts should ignore new progress messages.  
-**Scale/Scope**: Small protocol addition + adapter logic + CLI UI update.
+**Performance Goals**: 5Hz progress updates (every 200ms)  
+**Constraints**: Must maintain backward compatibility with v1.x protocol (ignoring new lines).  
+**Scale/Scope**: Protocol v1.1 addition + Firmware async refactor + Host adapter logic + CLI UI update.
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-- **Boundary Contracts**: PASS. The `PROGRESS` message is an additive change to the serial protocol.
-- **Hardware Abstraction**: PASS. The mock firmware will be updated to simulate `PROGRESS` messages.
-- **Spec-Driven**: PASS. Feature spec is complete and validated.
-- **Simplicity**: PASS. Minimal changes to existing communication loop.
+- **Boundary Contracts**: PASS. Updated `firmware-protocol.md` to v1.1.
+- **Hardware Abstraction**: PASS. Mock firmware will be updated to match the new async behavior and message types.
+- **Spec-Driven**: PASS. Spec is complete and clarified.
+- **Simplicity**: PASS. Minimal UI feedback, standard state machine pattern in firmware.
+- **Observability**: PASS. Real-time progress satisfies the core observability principle.
+- **Motion Safety**: PASS. Non-blocking architecture ensures Emergency Stop is responsive during moves.
 
 ## Project Structure
 
@@ -37,7 +37,7 @@ specs/004-movement-feedback/
 ├── spec.md              # Feature specification
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output (empty/small)
+├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/
 │   └── firmware-protocol.md # Updated contract
@@ -49,23 +49,21 @@ specs/004-movement-feedback/
 ```text
 firmware/
 ├── src/
-│   ├── main.cpp         # Update move_absolute to emit PROGRESS
-│   └── protocol.h       # Define PROGRESS reply token
-└── test/                # Add/update parser tests
+│   ├── main.cpp         # Refactor move_absolute to async state machine
+│   └── protocol.h       # Define PROGRESS, ESTIMATE, ERR constants
+└── test/                # Update parser tests
 
 host/
 ├── src/cameracommander/
 │   ├── hardware/tripod/
-│   │   ├── protocol.py  # Handle ProgressReply
-│   │   └── serial_adapter.py # Handle intermediate replies, extend timeout
+│   │   ├── protocol.py  # Handle ProgressReply, EstimateReply
+│   │   └── serial_adapter.py # Handle intermediate replies, refresh timeout
 │   ├── cli/commands/
-│   │   └── tripod.py    # Display progress feedback
+│   │   └── tripod.py    # Display overwritten single-line progress
 │   └── mock_firmware/
-│       └── server.py    # Simulate PROGRESS messages
+│       └── server.py    # Simulate async motion and PROGRESS messages
 └── tests/
-    ├── contract/        # Test protocol updates
-    ├── unit/            # Test adapter logic
-    └── integration/     # End-to-end progress test
+    ├── contract/        # Test protocol v1.1 updates
+    ├── integration/     # test_movement_timeout.py
+    └── unit/            # Test adapter progress handling
 ```
-
-**Structure Decision**: Standard single-project layout for both firmware and host as defined in the constitution.
