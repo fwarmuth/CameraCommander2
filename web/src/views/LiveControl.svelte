@@ -23,6 +23,11 @@
     "main.imgsettings.whitebalance",
     "main.capturesettings.exposurecompensation",
     "main.capturesettings.focusmode",
+    "main.imgsettings.imageformat",
+    "main.imgsettings.imageformatcf",
+    "main.imgsettings.imageformatsd",
+    "main.imgsettings.imagequality",
+    "main.settings.datetime",
   ];
 
   let cameraFault = $derived(
@@ -58,7 +63,18 @@
 
   function getSubGroups(tab: string): Record<string, string[]> {
     if (tab === "Planning") {
-      return { "": planningKeys.filter((k) => settings[k]) };
+      const essential = Object.keys(settings).filter((k) => {
+        const lower = k.toLowerCase();
+        return (
+          planningKeys.includes(k) ||
+          lower.includes("iso") ||
+          lower.includes("shutter") ||
+          lower.includes("aperture") ||
+          lower.includes("whitebalance") ||
+          lower.includes("imageformat")
+        );
+      });
+      return { "Essential Shoot Settings": essential };
     }
     return groups[tab] || {};
   }
@@ -173,7 +189,7 @@
         </div>
         <div class="flex gap-2">
            <input type="text" placeholder="Search settings..." class="rounded-full border border-stone-200 px-4 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20" bind:value={search} />
-           <button class="rounded-full border px-4 py-2 font-bold hover:bg-stone-50 transition" disabled={busy} on:click={loadSettings}>Reload</button>
+           <button class="rounded-full border px-4 py-2 font-bold hover:bg-stone-50 transition" disabled={busy} onclick={loadSettings}>Reload</button>
         </div>
       </div>
 
@@ -187,7 +203,7 @@
             class={`whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition ${
               activeTab === tab ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
             }`}
-            on:click={() => (activeTab = tab)}
+            onclick={() => (activeTab = tab)}
           >
             {tab === "Planning" ? "Planning" : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -200,7 +216,7 @@
             {#if subGroup}
               <button 
                 class="flex items-center justify-between w-full group text-left"
-                on:click={() => toggleCollapse(subGroup)}
+                onclick={() => toggleCollapse(subGroup)}
               >
                 <h4 class="text-[10px] font-black uppercase tracking-widest text-stone-400 group-hover:text-stone-600 transition">{subGroup.replace(".", " / ")}</h4>
                 <span class="text-[10px] text-stone-300 group-hover:text-stone-500 transition">{collapsedGroups.has(subGroup) ? 'EXPAND' : 'COLLAPSE'}</span>
@@ -241,13 +257,13 @@
       </div>
 
       <div class="mt-5 pt-5 border-t border-stone-100 flex flex-wrap items-center gap-4">
-        <button class="rounded-full bg-stone-900 px-6 py-3 font-black text-white hover:bg-stone-800 active:scale-95 transition disabled:opacity-50" disabled={busy || cameraFault} on:click={applySettings}>Apply settings</button>
+        <button class="rounded-full bg-stone-900 px-6 py-3 font-black text-white hover:bg-stone-800 active:scale-95 transition disabled:opacity-50" disabled={busy || cameraFault} onclick={applySettings}>Apply settings</button>
         <label class="flex items-center gap-2 font-bold text-sm cursor-pointer select-none">
             <input type="checkbox" class="w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500" bind:checked={autofocus} /> 
             Autofocus
         </label>
         <div class="flex-grow"></div>
-        <button class="rounded-full bg-amber-500 px-6 py-3 font-black text-stone-950 hover:bg-amber-400 active:scale-95 transition disabled:opacity-50 shadow-sm shadow-amber-200" disabled={busy || cameraFault} on:click={capture}>Test capture</button>
+        <button class="rounded-full bg-amber-500 px-6 py-3 font-black text-stone-950 hover:bg-amber-400 active:scale-95 transition disabled:opacity-50 shadow-sm shadow-amber-200" disabled={busy || cameraFault} onclick={capture}>Test capture</button>
       </div>
     </div>
 
@@ -257,6 +273,33 @@
           <span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
       </div>
       <img class="aspect-video w-full rounded-2xl bg-black object-contain ring-1 ring-white/10" src="/api/camera/preview/stream" alt="Camera live preview" />
+      
+      <div class="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-stone-800 pt-6">
+        {#each planningKeys.filter(k => settings[k]) as key}
+          {@const descriptor = settings[key]}
+          <div class="flex flex-col gap-1">
+            <span class="text-[9px] font-black uppercase tracking-widest text-stone-500">{key.split(".").pop()}</span>
+            {#if descriptor.choices?.length}
+              <select 
+                class="bg-transparent text-sm font-bold text-amber-200 border-none p-0 focus:ring-0 cursor-pointer hover:text-white transition-colors" 
+                bind:value={pending[key]}
+                onchange={() => applySettings()}
+              >
+                {#each descriptor.choices as choice}
+                  <option class="bg-stone-900 text-white" value={choice}>{choice}</option>
+                {/each}
+              </select>
+            {:else}
+              <input 
+                class="bg-transparent text-sm font-bold text-amber-200 border-none p-0 focus:ring-0 hover:text-white transition-colors" 
+                bind:value={pending[key]}
+                onchange={() => applySettings()}
+              />
+            {/if}
+          </div>
+        {/each}
+      </div>
+
       {#if captureUrl}
         <div class="mt-4 flex justify-end">
             <a class="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 font-bold text-stone-950 hover:bg-stone-100 transition active:scale-95 shadow-lg" href={captureUrl} target="_blank" rel="noreferrer">
@@ -296,11 +339,11 @@
 
     <div class="mt-8 grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
       <span></span>
-      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Tilt Up" disabled={busy || tripodFault || !canTiltUp} on:click={() => nudge(0, stepDeg)}>
+      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Tilt Up" disabled={busy || tripodFault || !canTiltUp} onclick={() => nudge(0, stepDeg)}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
       </button>
       <span></span>
-      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Pan Left" disabled={busy || tripodFault} on:click={() => nudge(-stepDeg, 0)}>
+      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Pan Left" disabled={busy || tripodFault} onclick={() => nudge(-stepDeg, 0)}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
       </button>
       <div class="grid gap-2">
@@ -308,19 +351,19 @@
             class={`rounded-xl py-2 text-[8px] font-black uppercase tracking-widest shadow-sm transition active:scale-95 ${
             $hardwareStatus?.tripod.drivers_enabled ? "bg-green-500 text-white" : "bg-stone-200 text-stone-600"
             }`}
-            on:click={toggleDrivers}
+            onclick={toggleDrivers}
         >
             {$hardwareStatus?.tripod.drivers_enabled ? "Motors On" : "Motors Off"}
         </button>
-        <button class="rounded-xl bg-red-600 p-4 font-black text-white hover:bg-red-500 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-red-600 shadow-md shadow-red-100" title="Emergency Stop" disabled={busy || tripodFault} on:click={stop}>
+        <button class="rounded-xl bg-red-600 p-4 font-black text-white hover:bg-red-500 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-red-600 shadow-md shadow-red-100" title="Emergency Stop" disabled={busy || tripodFault} onclick={stop}>
             <div class="h-4 w-4 mx-auto bg-white rounded-sm"></div>
         </button>
       </div>
-      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Pan Right" disabled={busy || tripodFault} on:click={() => nudge(stepDeg, 0)}>
+      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Pan Right" disabled={busy || tripodFault} onclick={() => nudge(stepDeg, 0)}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
       </button>
       <span></span>
-      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Tilt Down" disabled={busy || tripodFault || !canTiltDown} on:click={() => nudge(0, -stepDeg)}>
+      <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Tilt Down" disabled={busy || tripodFault || !canTiltDown} onclick={() => nudge(0, -stepDeg)}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
       </button>
       <span></span>
@@ -329,7 +372,7 @@
     <div class="mt-12 flex justify-center">
         <button 
             class="text-[10px] font-black uppercase tracking-[0.2em] text-stone-300 hover:text-amber-600 transition"
-            on:click={async () => { await api.homeTripod(); await refreshStatus(); message = "Home set to current position."; }}
+            onclick={async () => { await api.homeTripod(); await refreshStatus(); message = "Home set to current position."; }}
         >
             Reset Home (0,0)
         </button>
