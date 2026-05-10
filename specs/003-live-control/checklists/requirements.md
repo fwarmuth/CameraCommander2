@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Live Control and Planning Assist
+# Specification Quality Checklist: Live Control & Setup Assist
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-05-09
@@ -31,5 +31,4 @@
 
 ## Notes
 
-- Formalized the "Planning Assist" aspect of Live Control.
-- Clarified the relationship between live view and high-res snapshots.
+- Rewritten to prioritize the dual workflow: Live View for framing/focus and Test Captures for exposure verification.

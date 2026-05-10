@@ -1,84 +1,78 @@
-# Feature Specification: Live Control and Planning Assist
+# Feature Specification: Live Control & Setup Assist
 
-**Feature Branch**: `003-live-control`  
-**Created**: 2026-05-09  
-**Status**: Draft  
-**Input**: User description: "I want a live control tab, where the user can find out which settings he needs for a timelapse recording. so i need to have a tripod section to move the tripod, and find out whats the best starting and ending positions. Another aspect is the camera settings. Goal is here that the user gets a live view, to get an rough idea of the scene and focus settings. But also be able to do test captures (real snapshots) to see if the long exposure, aperature and iso settings really fit."
+**Feature Branch**: `003-live-control`
+**Created**: 2026-05-09
+**Status**: Draft
+**Input**: User description: "The live Control tab is made to setup the camera settings for the current scenery. For that the user needs to be able to control the most important camera capture settings like, iso, exposure time, aperature, white-balance and lens focus. To do that in a reasonable we need two apporaches. First a live view, which is meant to give the user instant feedback about lens focus settings (they need to be done via the webinterface as well) and the tripod positions/poses. The other approach is meant for detailed capture setup, for example live view with long exposure times makes now sense, for that a real test snapshop needs to be taken and inspected closely (with zoom for example)."
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Find Tripod Keyframes (Priority: P1)
+### User Story 1: Framing and Focusing (Priority: P1)
+As a photographer, I want to see a live preview and manually nudge the tripod and adjust lens focus so that I can perfectly compose and focus my shot before starting a long sequence.
 
-An operator wants to find the perfect start and end angles for a timelapse pan. They use the nudge controls in the Live Control tab to move the tripod while watching the live view. Once satisfied with a position, they note down the pan/tilt degrees shown in the UI to use in the sequence planner.
+**Why this priority**: Crucial for any successful shoot. Composition and focus are the first steps of the workflow.
 
-**Why this priority**: High. This is the primary method for framing a motion-control shot.
+**Independent Test**:
+1. Open the Live Control tab.
+2. Observe the live view stream.
+3. Use nudge controls for Pan/Tilt and see immediate movement.
+4. Adjust lens focus via UI buttons and observe focus change in the stream.
 
-**Independent Test**: Operator can click nudge buttons, see the physical tripod move, and see the position display update in real-time in the web UI.
+### User Story 2: Fine-Tuning Exposure (Priority: P1)
+As a photographer, I want to adjust ISO, aperture, and shutter speed, and then take a full-resolution test capture to verify that my exposure settings are correct for the current lighting.
 
-**Acceptance Scenarios**:
+**Why this priority**: Prevents unusable captures due to exposure error, which is especially important for timelapses where lighting changes.
 
-1. **Given** the tripod is homed and drivers are enabled, **When** the operator clicks "Pan +5", **Then** the tripod MUST move 5 degrees and the position display MUST reflect the new angle.
-2. **Given** the Live Control tab is open, **When** the operator clicks "Reset Home", **Then** the current physical position MUST become the new (0,0) reference.
+**Independent Test**:
+1. Set specific exposure parameters (e.g., ISO 400, 1/100s, f/8).
+2. Click "Test Capture".
+3. View the resulting image in a high-resolution viewer with zoom capability.
+4. Verify the exposure matches expectations.
 
----
+### User Story 3: Long Exposure Verification (Priority: P2)
+As a photographer shooting in low light, I want to take a test capture with a long exposure time (e.g., 30s) and inspect the noise and detail, as the live view will be too dark or noisy to be useful.
 
-### User Story 2 - Verify Exposure with Test Captures (Priority: P1)
+**Why this priority**: Essential for night/astrophotography timelapses.
 
-After framing the shot, the photographer needs to ensure their exposure settings (ISO, Shutter, Aperture) are correct, especially for long exposures. They trigger a "real" snapshot, wait for the download, and inspect the resulting high-res image.
-
-**Why this priority**: High. Prevents wasting hours on a timelapse with incorrect exposure or focus.
-
-**Independent Test**: Trigger a capture from the web UI and verify the image is downloaded and displayed for review.
-
-**Acceptance Scenarios**:
-
-1. **Given** a camera is connected, **When** the operator triggers a "Test Capture", **Then** the system MUST perform a full-res exposure and display the result in the browser.
-2. **Given** a test capture is displayed, **When** the operator changes the ISO settings, **Then** a subsequent test capture MUST reflect the exposure change.
-
----
-
-### User Story 3 - Focus Assist via Live View (Priority: P2)
-
-The operator needs to focus the lens. They use the MJPEG live view stream for a rough compositional overview and real-time feedback while manually focusing or using software focus commands.
-
-**Why this priority**: Medium. Crucial for setup, but secondary to the final high-res verification.
-
-**Independent Test**: Open the Live Control tab and verify the MJPEG stream is visible and updates in real-time.
-
-**Acceptance Scenarios**:
-
-1. **Given** the camera supports live view, **When** the Live Control tab is active, **Then** a continuous video stream MUST be displayed.
+**Independent Test**:
+1. Set a long exposure time (e.g., 2 seconds).
+2. Trigger test capture.
+3. Wait for capture completion and download.
+4. Inspect the image for detail and exposure balance.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide a dedicated "Live Control" tab in the web interface.
-- **FR-002**: System MUST display real-time Pan and Tilt angles of the tripod head.
-- **FR-003**: System MUST provide nudge controls (incremental Pan/Tilt) and a "Stop" action.
-- **FR-004**: System MUST provide a "Set current as home" action for tripod calibration.
-- **FR-005**: System MUST display a real-time MJPEG live view stream from the camera.
-- **FR-006**: System MUST allow triggering a full-resolution test capture (snapshot).
-- **FR-007**: System MUST display the result of the latest test capture for immediate review.
-- **FR-008**: System MUST expose critical camera settings (ISO, Aperture, Shutter, WB) in a clearly organized panel.
-- **FR-009**: System MUST automatically stop the live view stream when a capture or sequence job is active to avoid hardware conflicts.
+- **FR-001**: System MUST provide a "Live Control" view with a real-time MJPEG preview stream.
+- **FR-002**: System MUST allow manual tripod control (Nudge Pan/Tilt) from the Live Control view.
+- **FR-003**: System MUST allow lens focus adjustment (Focus In/Out) via the web interface.
+- **FR-004**: System MUST allow modification of ISO, Shutter Speed, Aperture, and White Balance.
+- **FR-005**: System MUST provide a "Test Capture" action that triggers a full-resolution snapshot.
+- **FR-006**: System MUST provide a high-resolution image viewer for test captures, including a zoom/magnification feature for focus/detail inspection.
+- **FR-007**: System MUST automatically stop the live view stream when a high-resolution capture (snapshot or sequence frame) is in progress to prevent hardware I/O conflicts.
+- **FR-008**: System MUST display the tripod's current position (Pan/Tilt) relative to home in the Live Control view.
 
 ### Key Entities
 
-- **Calibration State**: The software-maintained position of the tripod relative to its last home point.
-- **Quick Settings**: A curated list of camera parameters required for exposure planning.
+- **Quick Settings**: A subset of camera configuration (ISO, Shutter, Aperture, WB, Focus) optimized for interactive setup.
+- **Test Capture**: A non-persisted (transient) high-resolution image used only for verification.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Tripod position display updates within 500ms of hardware motion completion.
-- **SC-002**: Live view stream achieves at least 5 frames per second on the Pi Zero 2 W.
-- **SC-003**: Test captures are available for browser review in under 3 seconds after the exposure completes.
-- **SC-004**: Settings panel organizes 40+ camera commands into navigable groups (tabs or collapsible sections).
+- **SC-001**: Live view stream latency is under 500ms on a standard local network.
+- **SC-002**: Lens focus adjustments are reflected in the live view within 200ms of button release.
+- **SC-003**: Test capture thumbnail is displayed within 2 seconds of the exposure completing.
+- **SC-004**: Users can zoom into a test capture to at least 100% (1:1 pixel) magnification.
 
 ## Assumptions
 
-- Homing is software-only; the user is responsible for ensuring the head is in a safe starting position.
-- The camera supports standard gphoto2 preview and capture protocols.
-- Network bandwidth is sufficient for an MJPEG stream on the local network.
+- The camera supports remote focus control via the gphoto2 driver (not all lenses/cameras support this).
+- The camera provides a usable live view stream via gphoto2.
+- The web browser has sufficient memory to handle high-resolution image inspection.
+
+## Constraints
+
+- Only one hardware command (capture, move, focus) can be issued at a time due to serial/USB protocol limitations.
