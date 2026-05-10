@@ -11,9 +11,12 @@ import contextlib
 from pathlib import Path
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+from ..core.errors import CameraCommanderError
 
 from ..hardware.camera.base import CameraAdapter
 from ..hardware.tripod.base import TripodAdapter
@@ -88,6 +91,24 @@ def create_app(
 
     app = FastAPI(title="CameraCommander2", version="0.1.0", lifespan=lifespan)
     app.state.container = container
+
+    @app.exception_handler(CameraCommanderError)
+    async def domain_exception_handler(request: Request, exc: CameraCommanderError):
+        # Map class name to snake_case error code
+        import re
+
+        error_code = re.sub(
+            r"(?<!^)(?=[A-Z])", "_", exc.__class__.__name__.replace("Error", "")
+        ).lower()
+
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "error": error_code,
+                "message": exc.message,
+                "details": getattr(exc, "__dict__", {}),
+            },
+        )
 
     app.add_middleware(
         CORSMiddleware,

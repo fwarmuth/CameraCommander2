@@ -6,8 +6,6 @@ from __future__ import annotations
 class CameraCommanderError(Exception):
     """Base exception for all CameraCommander2 errors."""
 
-    message: str
-
     def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
@@ -52,9 +50,19 @@ class JobAlreadyRunningError(CameraCommanderError):
 class ProtocolVersionMismatchError(CameraCommanderError):
     """Raised when firmware reports an incompatible protocol major version."""
 
+    def __init__(self, message: str, expected_major: int, actual: str) -> None:
+        super().__init__(message)
+        self.expected_major = expected_major
+        self.actual = actual
 
-class MockOnlyError(CameraCommanderError):
-    """Raised when a mock-specific feature is used in real hardware mode."""
 
 class TripodError(CameraCommanderError):
     """Raised when the tripod encountered a hardware or protocol error."""
+
+    def __init__(self, message: str, firmware_error: str | None = None) -> None:
+        super().__init__(message)
+        self.firmware_error = firmware_error
+
+
+class MockOnlyError(CameraCommanderError):
+    """Raised when a mock-specific feature is used in real hardware mode."""
