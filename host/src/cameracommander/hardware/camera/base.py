@@ -51,3 +51,12 @@ class CameraAdapter(Protocol):
     async def preview_stream(self) -> AsyncIterator[bytes]:
         """Return an infinite stream of JPEG preview frames."""
         ...
+
+    async def focus_nudge(self, step_size: int) -> None:
+        """Nudge the lens focus motor. step_size is typically -3 to 3."""
+        ...
+
+    @property
+    def is_busy(self) -> bool:
+        """True if the camera is performing a non-preview operation."""
+        ...

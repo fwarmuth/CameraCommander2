@@ -24,6 +24,11 @@ class GphotoCameraAdapter:
         self._last_error: str | None = None
         self._lock = asyncio.Lock()
 
+    @property
+    def is_busy(self) -> bool:
+        """True if the camera is currently performing a high-priority operation."""
+        return self._lock.locked()
+
     async def open(self) -> None:
         async with self._lock:
             await asyncio.to_thread(self._open_blocking)
@@ -102,10 +107,11 @@ class GphotoCameraAdapter:
 
         def walk(widget: Any, path: str = "") -> None:
             name = gp.check_result(gp.gp_widget_get_name(widget))
+            label = gp.check_result(gp.gp_widget_get_label(widget))
             full_path = f"{path}.{name}" if path else name
-            
+
             w_type = gp.check_result(gp.gp_widget_get_type(widget))
-            
+
             if w_type == gp.GP_WIDGET_SECTION or w_type == gp.GP_WIDGET_WINDOW:
                 for i in range(gp.check_result(gp.gp_widget_count_children(widget))):
                     walk(gp.check_result(gp.gp_widget_get_child(widget, i)), full_path)
@@ -113,10 +119,19 @@ class GphotoCameraAdapter:
                 try:
                     val = gp.check_result(gp.gp_widget_get_value(widget))
                     choices = None
+                    w_range = None
+
                     if w_type in (gp.GP_WIDGET_MENU, gp.GP_WIDGET_RADIO):
-                        choices = [gp.check_result(gp.gp_widget_get_choice(widget, i)) 
-                                   for i in range(gp.check_result(gp.gp_widget_get_choices(widget)))]
-                    
+                        choices = [
+                            gp.check_result(gp.gp_widget_get_choice(widget, i))
+                            for i in range(gp.check_result(gp.gp_widget_get_choices(widget)))
+                        ]
+                    elif w_type == gp.GP_WIDGET_RANGE:
+                        low, high, step = gp.check_result(
+                            gp.gp_widget_get_range(widget)
+                        )
+                        w_range = {"min": low, "max": high, "step": step}
+
                     type_map = {
                         gp.GP_WIDGET_TEXT: "TEXT",
                         gp.GP_WIDGET_RANGE: "RANGE",
@@ -126,11 +141,14 @@ class GphotoCameraAdapter:
                         gp.GP_WIDGET_DATE: "DATE",
                         gp.GP_WIDGET_BUTTON: "BUTTON",
                     }
-                    
+
                     settings[full_path] = SettingDescriptor(
+                        full_path=full_path,
+                        label=label,
                         type=type_map.get(w_type, "UNKNOWN"),
                         current=val,
-                        choices=choices
+                        choices=choices,
+                        range=w_range,
                     )
                 except Exception:
                     pass
@@ -217,6 +235,12 @@ class GphotoCameraAdapter:
                 await asyncio.sleep(0.2)
 
         return _stream()
+
+    async def focus_nudge(self, step_size: int) -> None:
+        """Nudge the lens focus motor using manualfocusdrive action."""
+        # Canon DSLRs typically use main.actions.manualfocusdrive
+        # Positive values (1, 2, 3) move 'near', negative (-1, -2, -3) move 'far'
+        await self.apply_settings({"main.actions.manualfocusdrive": step_size})
 
 
 __all__ = ["GphotoCameraAdapter"]

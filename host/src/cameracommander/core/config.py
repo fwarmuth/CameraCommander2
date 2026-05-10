@@ -154,6 +154,8 @@ class Configuration(BaseModel):
 class SettingDescriptor(BaseModel):
     """Metadata for a single camera setting widget."""
 
+    full_path: str
+    label: str
     type: Literal[
         "TEXT", "RANGE", "TOGGLE", "RADIO", "MENU", "DATE", "BUTTON", "UNKNOWN"
     ]

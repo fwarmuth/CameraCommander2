@@ -27,6 +27,10 @@ class MockCameraAdapter:
     async def close(self) -> None:
         self._connected = False
 
+    @property
+    def is_busy(self) -> bool:
+        return False
+
     async def status(self) -> CameraStatus:
         return CameraStatus(
             state=CameraState.connected if self._connected else CameraState.disconnected,
@@ -36,12 +40,35 @@ class MockCameraAdapter:
 
     async def query_settings(self) -> dict[str, SettingDescriptor]:
         return {
-            "main.imgsettings.iso": SettingDescriptor(type="MENU", current="100", choices=["100", "200", "400", "800"]),
-            "main.capturesettings.shutterspeed": SettingDescriptor(type="MENU", current="1/125", choices=["1/60", "1/125", "1/250"]),
+            "main.imgsettings.iso": SettingDescriptor(
+                full_path="main.imgsettings.iso",
+                label="ISO Speed",
+                type="MENU",
+                current="100",
+                choices=["100", "200", "400", "800"],
+            ),
+            "main.capturesettings.shutterspeed": SettingDescriptor(
+                full_path="main.capturesettings.shutterspeed",
+                label="Shutter Speed",
+                type="MENU",
+                current="1/125",
+                choices=["1/60", "1/125", "1/250"],
+            ),
+            "main.capturesettings.aperture": SettingDescriptor(
+                full_path="main.capturesettings.aperture",
+                label="Aperture",
+                type="MENU",
+                current="f/8",
+                choices=["f/4", "f/5.6", "f/8", "f/11"],
+            ),
         }
 
     async def apply_settings(self, settings: dict[str, str | int | float | bool]) -> None:
         await asyncio.sleep(0.05)
+
+    async def focus_nudge(self, step_size: int) -> None:
+        """Simulate focus nudge delay."""
+        await asyncio.sleep(0.1)
 
     async def capture_still(self, *, autofocus: bool = False) -> tuple[CaptureResult, bytes]:
         if not self._connected:

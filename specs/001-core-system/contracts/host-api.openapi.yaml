@@ -133,6 +133,23 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/camera/focus:
+    post:
+      tags: [camera]
+      summary: Nudge the lens focus motor
+      operationId: postCameraFocus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FocusNudgeRequest"
+      responses:
+        "204":
+          description: Nudge issued.
+        "503":
+          $ref: "#/components/responses/CameraUnavailable"
+
   /api/camera/preview:
     get:
       tags: [camera]
@@ -690,6 +707,18 @@ components:
             - { type: string, format: uuid, description: "Existing session_id" }
             - { type: "null" }
           description: Optional — store the test capture as an asset on a session.
+
+    FocusNudgeRequest:
+      type: object
+      required: [step_size]
+      properties:
+        step_size:
+          type: integer
+          minimum: -3
+          maximum: 3
+          description: |
+            Incremental focus step. Positive for 'near', negative for 'far'.
+            Scale is usually 1=small, 2=medium, 3=large.
 
     CaptureResult:
       type: object

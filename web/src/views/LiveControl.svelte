@@ -4,6 +4,8 @@
   import { api, ApiError } from "../lib/api/client";
   import type { CameraSettings } from "../lib/api/types";
   import { hardwareStatus, refreshStatus } from "../lib/stores";
+  import QuickSettingsBar from "../components/QuickSettingsBar.svelte";
+  import ImageInspector from "../components/ImageInspector.svelte";
 
   let settings: CameraSettings = $state({});
   let pending: Record<string, string | number | boolean> = $state({});
@@ -15,6 +17,8 @@
   let busy = $state(false);
   let activeTab = $state("Planning");
   let collapsedGroups = $state(new Set<string>());
+  let focusStep = $state(1);
+  let showInspector = $state(false);
 
   const planningKeys = [
     "main.imgsettings.iso",
@@ -112,11 +116,17 @@
     }
   }
 
+  async function applySingleSetting(key: string, value: string | number | boolean): Promise<void> {
+    pending[key] = value;
+    await applySettings();
+  }
+
   async function capture(): Promise<void> {
     busy = true;
     try {
       const result = await api.captureCamera(autofocus);
       captureUrl = result.download_url ?? `/api/camera/captures/${result.capture_id}`;
+      showInspector = true;
       message = `Captured ${Math.round(result.size_bytes / 1024)} KiB.`;
     } catch (error) {
       message = describe(error, "Capture failed");
@@ -133,6 +143,18 @@
       message = `Nudged pan ${deltaPan}, tilt ${deltaTilt}.`;
     } catch (error) {
       message = describe(error, "Nudge failed");
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function nudgeFocus(step: number): Promise<void> {
+    busy = true;
+    try {
+      await api.focusCamera(step);
+      message = `Nudged focus ${step}.`;
+    } catch (error) {
+      message = describe(error, "Focus nudge failed");
     } finally {
       busy = false;
     }
@@ -274,30 +296,8 @@
       </div>
       <img class="aspect-video w-full rounded-2xl bg-black object-contain ring-1 ring-white/10" src="/api/camera/preview/stream" alt="Camera live preview" />
       
-      <div class="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-stone-800 pt-6">
-        {#each planningKeys.filter(k => settings[k]) as key}
-          {@const descriptor = settings[key]}
-          <div class="flex flex-col gap-1">
-            <span class="text-[9px] font-black uppercase tracking-widest text-stone-500">{key.split(".").pop()}</span>
-            {#if descriptor.choices?.length}
-              <select 
-                class="bg-transparent text-sm font-bold text-amber-200 border-none p-0 focus:ring-0 cursor-pointer hover:text-white transition-colors" 
-                bind:value={pending[key]}
-                onchange={() => applySettings()}
-              >
-                {#each descriptor.choices as choice}
-                  <option class="bg-stone-900 text-white" value={choice}>{choice}</option>
-                {/each}
-              </select>
-            {:else}
-              <input 
-                class="bg-transparent text-sm font-bold text-amber-200 border-none p-0 focus:ring-0 hover:text-white transition-colors" 
-                bind:value={pending[key]}
-                onchange={() => applySettings()}
-              />
-            {/if}
-          </div>
-        {/each}
+      <div class="mt-6 border-t border-stone-800 pt-6">
+        <QuickSettingsBar {settings} {pending} apply={applySingleSetting} {busy} />
       </div>
 
       {#if captureUrl}
@@ -314,7 +314,35 @@
   </div>
 
   <aside class="rounded-3xl bg-white p-6 shadow-sm border border-stone-100">
-    <h3 class="text-xl font-black">Tripod nudge</h3>
+    <h3 class="mt-8 text-xl font-black">Lens focus</h3>
+    <div class="mt-5 flex items-center justify-between gap-4">
+      <div class="grid grow gap-1.5">
+        <span class="text-xs font-black uppercase tracking-widest text-stone-400">Step size</span>
+        <select class="rounded-xl border border-stone-200 p-3 font-bold focus:border-amber-500 focus:outline-none transition" bind:value={focusStep}>
+          <option value={1}>1 (Fine)</option>
+          <option value={2}>2 (Medium)</option>
+          <option value={3}>3 (Coarse)</option>
+        </select>
+      </div>
+      <div class="mt-5 flex gap-2">
+        <button 
+          class="rounded-2xl bg-stone-900 px-6 py-4 font-black text-white hover:bg-stone-800 active:scale-95 transition disabled:opacity-30"
+          disabled={busy || cameraFault}
+          onclick={() => nudgeFocus(-focusStep)}
+        >
+          Far
+        </button>
+        <button 
+          class="rounded-2xl bg-stone-900 px-6 py-4 font-black text-white hover:bg-stone-800 active:scale-95 transition disabled:opacity-30"
+          disabled={busy || cameraFault}
+          onclick={() => nudgeFocus(focusStep)}
+        >
+          Near
+        </button>
+      </div>
+    </div>
+
+    <h3 class="mt-8 text-xl font-black">Tripod nudge</h3>
     {#if tripodFault}
       <p class="mt-4 rounded-2xl bg-red-100 p-3 font-bold text-red-800 border border-red-200">Tripod is {$hardwareStatus?.tripod.state ?? "unknown"}; nudge controls are disabled.</p>
     {/if}
@@ -384,6 +412,10 @@
     </p>
   </aside>
 </section>
+
+{#if showInspector && captureUrl}
+  <ImageInspector src={captureUrl} onClose={() => showInspector = false} />
+{/if}
 
 <style>
     .no-scrollbar::-webkit-scrollbar {

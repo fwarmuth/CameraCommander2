@@ -6,6 +6,7 @@ from typing import AsyncIterator
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 
+from ...core.config import FocusNudgeRequest
 from ...core.models import CameraStatus, CaptureResult
 from ..deps import AppContainer, get_container
 
@@ -55,7 +56,7 @@ async def get_camera_preview_stream(container: AppContainer = Depends(get_contai
 
     async def frames():
         async for frame in stream:
-            if _active_job_locked(container):
+            if _active_job_locked(container) or container.camera.is_busy:
                 break
             yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
 
@@ -63,6 +64,19 @@ async def get_camera_preview_stream(container: AppContainer = Depends(get_contai
         frames(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@router.post("/focus", status_code=status.HTTP_204_NO_CONTENT)
+async def post_camera_focus(
+    req: FocusNudgeRequest,
+    container: AppContainer = Depends(get_container),
+):
+    if container.camera is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="no camera connected",
+        )
+    await container.camera.focus_nudge(req.step_size)
 
 
 __all__ = ["router"]

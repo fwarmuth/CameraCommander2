@@ -53,6 +53,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ autofocus }),
     }),
+  focusCamera: (stepSize: number) =>
+    request<void>("/api/camera/focus", {
+      method: "POST",
+      body: JSON.stringify({ step_size: stepSize }),
+    }),
 
   tripodStatus: () => request<TripodStatus>("/api/tripod/status"),
   moveTripod: (pan: number, tilt: number) =>
