@@ -168,10 +168,44 @@ class GphotoCameraAdapter:
                 widget = config
                 for part in parts:
                     widget = gp.check_result(gp.gp_widget_get_child_by_name(widget, part))
-                gp.check_result(gp.gp_widget_set_value(widget, str(val)))
+
+                w_type = gp.check_result(gp.gp_widget_get_type(widget))
+                if w_type in (gp.GP_WIDGET_MENU, gp.GP_WIDGET_RADIO):
+                    # If val is an index or near/far int, try to match choice
+                    choices = [
+                        gp.check_result(gp.gp_widget_get_choice(widget, i))
+                        for i in range(gp.check_result(gp.gp_widget_get_choices(widget)))
+                    ]
+                    if isinstance(val, int):
+                        # Focus nudge special case: -3..3 mapped to indices or strings
+                        if key.endswith("manualfocusdrive"):
+                            # Canon standard: Far 3, Far 2, Far 1, None, Near 1, Near 2, Near 3
+                            # We search for the string containing the number and direction
+                            direction = "Near" if val > 0 else "Far"
+                            strength = str(abs(val))
+                            found = False
+                            for c in choices:
+                                if direction in c and strength in c:
+                                    gp.check_result(gp.gp_widget_set_value(widget, c))
+                                    found = True
+                                    break
+                            if not found:
+                                # Fallback to direct string or index if named choices don't match
+                                gp.check_result(gp.gp_widget_set_value(widget, str(val)))
+                        else:
+                            # Generic index fallback
+                            if 0 <= val < len(choices):
+                                gp.check_result(gp.gp_widget_set_value(widget, choices[val]))
+                    else:
+                        gp.check_result(gp.gp_widget_set_value(widget, str(val)))
+                elif w_type == gp.GP_WIDGET_RANGE:
+                    gp.check_result(gp.gp_widget_set_value(widget, float(val)))
+                else:
+                    gp.check_result(gp.gp_widget_set_value(widget, str(val)))
+
             except Exception as e:
                 raise CameraError(f"setting {key!r} failed: {e}") from e
-        
+
         gp.check_result(gp.gp_camera_set_config(self._camera, config, self._context))
 
     async def capture_still(self, *, autofocus: bool = False) -> tuple[CaptureResult, bytes]:
