@@ -36,12 +36,16 @@
   $: groups = Object.keys(settings).reduce(
     (acc, key) => {
       const parts = key.split(".");
-      const groupName = parts.slice(0, -1).join(".");
-      if (!acc[groupName]) acc[groupName] = [];
-      acc[groupName].push(key);
+      const tabName = parts.length > 1 ? parts[1] : "other";
+      if (!acc[tabName]) acc[tabName] = {};
+      
+      const subGroup = parts.length > 2 ? parts.slice(2, -1).join(".") || "general" : "general";
+      if (!acc[tabName][subGroup]) acc[tabName][subGroup] = [];
+      acc[tabName][subGroup].push(key);
+      
       return acc;
     },
-    {} as Record<string, string[]>,
+    {} as Record<string, Record<string, string[]>>,
   );
 
   $: tabs = ["Planning", ...Object.keys(groups).sort()];
@@ -60,11 +64,11 @@
     }
   }
 
-  function getActiveKeys(tab: string): string[] {
+  function getSubGroups(tab: string): Record<string, string[]> {
     if (tab === "Planning") {
-      return planningKeys.filter((k) => settings[k]);
+      return { "": planningKeys.filter((k) => settings[k]) };
     }
-    return groups[tab] || [];
+    return groups[tab] || {};
   }
 
   function describe(error: unknown, fallback: string): string {
@@ -167,34 +171,43 @@
             }`}
             on:click={() => (activeTab = tab)}
           >
-            {tab === "Planning" ? "Planning" : tab.replace("main.", "")}
+            {tab === "Planning" ? "Planning" : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         {/each}
       </nav>
 
-      <div class="mt-4 grid max-h-[24rem] gap-3 overflow-auto pr-2">
-        {#each getActiveKeys(activeTab) as key}
-          {@const descriptor = settings[key]}
-          <label class="grid gap-2 rounded-2xl border border-stone-200 p-3 md:grid-cols-[1fr_14rem] md:items-center">
-            <span>
-              <strong class="block text-sm">{key.split(".").pop()}</strong>
-              <span class="text-[10px] uppercase tracking-wider text-stone-400">{key}</span>
-            </span>
-            {#if descriptor.choices?.length}
-              <select class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]}>
-                {#each descriptor.choices as choice}
-                  <option value={choice}>{choice}</option>
-                {/each}
-              </select>
-            {:else if descriptor.type === 'RANGE'}
-              <div class="flex items-center gap-2">
-                 <input type="range" class="grow" min={descriptor.range?.min} max={descriptor.range?.max} step={descriptor.range?.step} bind:value={pending[key]} />
-                 <span class="text-xs w-8 text-right">{pending[key]}</span>
-              </div>
-            {:else}
-              <input class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]} />
+      <div class="mt-4 grid max-h-[32rem] gap-6 overflow-auto pr-2">
+        {#each Object.entries(getSubGroups(activeTab)) as [subGroup, keys]}
+          <div class="grid gap-3">
+            {#if subGroup}
+              <h4 class="text-[10px] font-black uppercase tracking-widest text-stone-400">{subGroup.replace(".", " / ")}</h4>
             {/if}
-          </label>
+            <div class="grid gap-3">
+              {#each keys as key}
+                {@const descriptor = settings[key]}
+                <label class="grid gap-2 rounded-2xl border border-stone-200 p-3 md:grid-cols-[1fr_14rem] md:items-center">
+                  <span>
+                    <strong class="block text-sm">{key.split(".").pop()}</strong>
+                    <span class="text-[10px] uppercase tracking-wider text-stone-400">{key}</span>
+                  </span>
+                  {#if descriptor.choices?.length}
+                    <select class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]}>
+                      {#each descriptor.choices as choice}
+                        <option value={choice}>{choice}</option>
+                      {/each}
+                    </select>
+                  {:else if descriptor.type === 'RANGE'}
+                    <div class="flex items-center gap-2">
+                       <input type="range" class="grow" min={descriptor.range?.min} max={descriptor.range?.max} step={descriptor.range?.step} bind:value={pending[key]} />
+                       <span class="text-xs w-8 text-right">{pending[key]}</span>
+                    </div>
+                  {:else}
+                    <input class="rounded-xl border border-stone-300 bg-white p-2 text-sm" bind:value={pending[key]} />
+                  {/if}
+                </label>
+              {/each}
+            </div>
+          </div>
         {/each}
       </div>
 
@@ -221,19 +234,9 @@
     {/if}
 
     <dl class="mt-5 grid gap-3 text-sm">
-      <div class="rounded-2xl bg-stone-100 p-3 flex justify-between items-center">
-        <div>
-           <dt class="font-bold">Position</dt>
-           <dd>{($hardwareStatus?.tripod.position_pan_deg ?? 0).toFixed(2)} pan / {currentTilt.toFixed(2)} tilt</dd>
-        </div>
-        <button
-          class={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
-            $hardwareStatus?.tripod.drivers_enabled ? "bg-green-500 text-white" : "bg-stone-300 text-stone-600"
-          }`}
-          on:click={toggleDrivers}
-        >
-          Drivers: {$hardwareStatus?.tripod.drivers_enabled ? "ON" : "OFF"}
-        </button>
+      <div class="rounded-2xl bg-stone-100 p-3">
+        <dt class="font-bold">Position</dt>
+        <dd>{($hardwareStatus?.tripod.position_pan_deg ?? 0).toFixed(2)} pan / {currentTilt.toFixed(2)} tilt</dd>
       </div>
       <div class="rounded-2xl bg-stone-100 p-3">
         <dt class="font-bold">Tilt window</dt>
@@ -241,10 +244,20 @@
       </div>
     </dl>
 
-    <label class="mt-5 grid gap-1 font-bold">
-      Step degrees
-      <input class="rounded-xl border p-3" type="number" min="0.1" step="0.1" bind:value={stepDeg} />
-    </label>
+    <div class="mt-5 flex items-center justify-between gap-4">
+      <label class="grid grow gap-1 font-bold">
+        Step degrees
+        <input class="rounded-xl border p-3" type="number" min="0.1" step="0.1" bind:value={stepDeg} />
+      </label>
+      <button
+        class={`mt-5 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest shadow-sm transition ${
+          $hardwareStatus?.tripod.drivers_enabled ? "bg-green-500 text-white" : "bg-stone-200 text-stone-600"
+        }`}
+        on:click={toggleDrivers}
+      >
+        Motors: {$hardwareStatus?.tripod.drivers_enabled ? "ON" : "OFF"}
+      </button>
+    </div>
 
     <div class="mt-5 grid grid-cols-3 gap-3">
       <span></span>

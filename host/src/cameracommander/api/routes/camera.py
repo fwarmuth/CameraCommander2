@@ -39,7 +39,7 @@ async def post_camera_capture(container: AppContainer = Depends(get_container)):
 
 @router.get("/captures/{capture_id}")
 async def get_capture_file(
-    capture_id: string, container: AppContainer = Depends(get_container)
+    capture_id: str, container: AppContainer = Depends(get_container)
 ):
     if capture_id not in container.captures:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
