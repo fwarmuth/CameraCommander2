@@ -8,6 +8,7 @@ export const hardwareStatus = writable<HardwareStatus | null>(null);
 export const activeJob = writable<Job | null>(null);
 export const calibration = writable<CalibrationValue>("unknown");
 export const connectionState = writable<"offline" | "online">("offline");
+export const plannerConfiguration = writable<Configuration | null>(null);
 
 export async function refreshStatus() {
   try {

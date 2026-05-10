@@ -117,6 +117,10 @@ class RelativeNudgeRequest(BaseModel):
     delta_tilt_deg: float = 0.0
 
 
+class DriverRequest(BaseModel):
+    enabled: bool
+
+
 SequenceConfig = Annotated[
     TimelapseSequenceConfig | VideoPanSequenceConfig, Field(discriminator="kind")
 ]
@@ -217,6 +221,7 @@ __all__ = [
     "CameraConfig",
     "Configuration",
     "ConfigurationMetadata",
+    "DriverRequest",
     "HostConfig",
     "OutputConfig",
     "RelativeNudgeRequest",

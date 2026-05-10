@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from ...core.config import AbsoluteMoveRequest, RelativeNudgeRequest
+from ...core.config import AbsoluteMoveRequest, DriverRequest, RelativeNudgeRequest
 from ...core.models import TripodStatus
 from ..deps import AppContainer, get_container
 
@@ -58,7 +58,7 @@ async def post_tripod_stop(container: AppContainer = Depends(get_container)):
 
 @router.put("/drivers")
 async def put_tripod_drivers(
-    enabled: bool,
+    req: DriverRequest,
     container: AppContainer = Depends(get_container),
 ):
     if container.tripod is None:
@@ -66,8 +66,8 @@ async def put_tripod_drivers(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="no tripod connected",
         )
-    await container.tripod.set_drivers(enabled)
-    if not enabled:
+    await container.tripod.set_drivers(req.enabled)
+    if not req.enabled:
         container.calibration.mark_unknown("drivers_disabled")
     return await container.tripod.status()
 
