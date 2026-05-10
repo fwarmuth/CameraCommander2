@@ -6,15 +6,21 @@
 - **Alternatives considered**: `P <pan> <tilt>` (shorter but less descriptive).
 
 ## Decision 2: Firmware Progress Emission
-- **Decision**: Emit `PROGRESS` every 200ms during the blocking `move_absolute` loop.
+- **Decision**: Emit `PROGRESS` every 200ms during moves.
 - **Rationale**: 5Hz is enough for smooth UI feedback without overwhelming the serial buffer or CPU on the ESP8266.
-- **Implementation**: Use `millis()` to track the last emission time within the `while` loop.
 
 ## Decision 3: Host Timeout Handling
 - **Decision**: `SerialTripodAdapter._send_blocking` will catch `ProgressReply`, call an optional callback, and reset the `deadline`.
 - **Rationale**: This "touches" the timeout deadline, allowing the move to continue indefinitely as long as progress is reported. It keeps the core communication loop simple.
-- **Alternatives considered**: Calculating a huge fixed timeout upfront. Rejected because it doesn't provide the requested feedback.
 
 ## Decision 4: Duration Estimation
-- **Decision**: The host will estimate duration as `max(abs(delta_pan), abs(delta_tilt)) / ESTIMATED_SPEED`.
-- **Rationale**: Gives the user a rough idea of how long to wait. `ESTIMATED_SPEED` will be set to a conservative 1.0 deg/s for the UI (actual default is ~1.5 deg/s).
+- **Decision**: The firmware will calculate the estimate upon receiving `M` and emit `ESTIMATE <seconds>`.
+- **Rationale**: The firmware has the most accurate information about speed and acceleration parameters.
+
+## Decision 5: Emergency Stop Handling
+- **Decision**: Full refactor of firmware motion logic to be non-blocking.
+- **Rationale**: Allows the firmware to remain responsive to `X` (Emergency Stop) and `S` (Status) commands during movement, satisfying safety and observability requirements.
+
+## Decision 6: Error Handling for Moves
+- **Decision**: Firmware will emit `ERR AlreadyAtTarget` for redundant moves and `ERR MotorStall` if motion stops prematurely.
+- **Rationale**: Provides clear error states to the host, allowing for better user feedback and diagnostics.

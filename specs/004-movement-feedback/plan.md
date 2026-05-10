@@ -5,7 +5,7 @@
 
 ## Summary
 
-This feature addresses the movement timeout issue by introducing a periodic `PROGRESS` message from the firmware during motion. The host will handle these messages to provide real-time feedback in the CLI and automatically extend the command timeout deadline as long as progress is being made.
+This feature addresses the movement timeout issue by refactoring the firmware to use a non-blocking (async) state machine for motion. This allows the firmware to periodically emit `PROGRESS` messages and handle concurrent commands like `X` (Emergency Stop) or `S` (Status) during a move. The firmware will also calculate and provide an initial `ESTIMATE` for the move duration. The host will handle these messages to provide real-time feedback in the CLI (via overwritten single lines) and automatically extend the command timeout deadline as long as progress is being made.
 
 ## Technical Context
 
