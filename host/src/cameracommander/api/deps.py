@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -23,6 +23,7 @@ class AppContainer:
     calibration: Any = None
     sessions: Any = None
     safety: Any = None
+    captures: dict[str, bytes] = field(default_factory=dict)
 
 
 from starlette.requests import HTTPConnection

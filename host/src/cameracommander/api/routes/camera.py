@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import AsyncIterator
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 
 from ...core.models import CameraStatus, CaptureResult
@@ -27,7 +27,23 @@ async def get_camera_settings(container: AppContainer = Depends(get_container)):
 async def post_camera_capture(container: AppContainer = Depends(get_container)):
     if container.camera is None:
         return {"error": "no camera connected"}
-    return await container.camera.capture_still()
+    meta, data = await container.camera.capture_still()
+    # Cache the capture
+    container.captures[meta.capture_id] = data
+    # Keep only the last 5 test captures
+    if len(container.captures) > 5:
+        first_key = next(iter(container.captures))
+        del container.captures[first_key]
+    return meta
+
+
+@router.get("/captures/{capture_id}")
+async def get_capture_file(
+    capture_id: string, container: AppContainer = Depends(get_container)
+):
+    if capture_id not in container.captures:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return Response(content=container.captures[capture_id], media_type="image/jpeg")
 
 
 @router.get("/preview/stream")

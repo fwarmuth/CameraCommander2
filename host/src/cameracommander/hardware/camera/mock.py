@@ -43,22 +43,31 @@ class MockCameraAdapter:
     async def apply_settings(self, settings: dict[str, str | int | float | bool]) -> None:
         await asyncio.sleep(0.05)
 
-    async def capture_still(self, *, autofocus: bool = False) -> CaptureResult:
+    async def capture_still(self, *, autofocus: bool = False) -> tuple[CaptureResult, bytes]:
         if not self._connected:
             from ...core.errors import CameraError
+
             raise CameraError("Camera disconnected")
-        
+
         self._capture_count += 1
         cid = str(uuid.uuid4())
-        
-        # In a real impl, we'd write to a temp file. For mock, just return meta.
-        return CaptureResult(
+
+        # Generate a dummy image
+        img = Image.new("RGB", (1920, 1080), color=(100, 150, 200))
+        d = ImageDraw.Draw(img)
+        d.text((50, 50), f"CAPTURE {self._capture_count} - {cid}", fill=(255, 255, 255))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        data = buf.getvalue()
+
+        meta = CaptureResult(
             capture_id=cid,
             content_type="image/jpeg",
             captured_at=datetime.now(),
-            size_bytes=1024 * 1024,
-            download_url=f"/api/camera/captures/{cid}"
+            size_bytes=len(data),
+            download_url=f"/api/camera/captures/{cid}",
         )
+        return meta, data
 
     async def start_recording(self) -> None:
         pass

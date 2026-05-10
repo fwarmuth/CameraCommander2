@@ -156,29 +156,42 @@ class GphotoCameraAdapter:
         
         gp.check_result(gp.gp_camera_set_config(self._camera, config, self._context))
 
-    async def capture_still(self, *, autofocus: bool = False) -> CaptureResult:
+    async def capture_still(self, *, autofocus: bool = False) -> tuple[CaptureResult, bytes]:
         async with self._lock:
             return await asyncio.to_thread(self._capture_blocking, autofocus)
 
-    def _capture_blocking(self, autofocus: bool) -> CaptureResult:
+    def _capture_blocking(self, autofocus: bool) -> tuple[CaptureResult, bytes]:
         from datetime import datetime
         import uuid
-        
+
         # Trigger capture
-        path = gp.check_result(gp.gp_camera_capture(self._camera, gp.GP_CAPTURE_IMAGE, self._context))
-        
+        path = gp.check_result(
+            gp.gp_camera_capture(self._camera, gp.GP_CAPTURE_IMAGE, self._context)
+        )
+
         # Download from camera
         camera_file = gp.check_result(gp.gp_file_new())
-        gp.check_result(gp.gp_camera_file_get(self._camera, path.folder, path.name, gp.GP_FILE_TYPE_NORMAL, camera_file, self._context))
-        data = gp.check_result(gp.gp_file_get_data_and_size(camera_file))
-        
-        return CaptureResult(
-            capture_id=str(uuid.uuid4()),
+        gp.check_result(
+            gp.gp_camera_file_get(
+                self._camera,
+                path.folder,
+                path.name,
+                gp.GP_FILE_TYPE_NORMAL,
+                camera_file,
+                self._context,
+            )
+        )
+        data = bytes(gp.check_result(gp.gp_file_get_data_and_size(camera_file)))
+
+        cid = str(uuid.uuid4())
+        meta = CaptureResult(
+            capture_id=cid,
             content_type="image/jpeg",
             captured_at=datetime.now(),
             size_bytes=len(data),
-            download_url=""
+            download_url=f"/api/camera/captures/{cid}",
         )
+        return meta, data
 
     async def start_recording(self) -> None:
         await self.apply_settings({"main.actions.movie": 1})

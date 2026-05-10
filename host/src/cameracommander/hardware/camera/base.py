@@ -32,8 +32,8 @@ class CameraAdapter(Protocol):
         """Update camera parameters."""
         ...
 
-    async def capture_still(self, *, autofocus: bool = False) -> CaptureResult:
-        """Trigger a single exposure and return metadata."""
+    async def capture_still(self, *, autofocus: bool = False) -> tuple[CaptureResult, bytes]:
+        """Trigger a single exposure and return metadata and JPEG bytes."""
         ...
 
     async def start_recording(self) -> None:
