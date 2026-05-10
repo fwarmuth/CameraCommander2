@@ -292,14 +292,6 @@
         <span class="text-xs font-black uppercase tracking-widest text-stone-400">Step degrees</span>
         <input class="rounded-xl border border-stone-200 p-3 font-bold focus:border-amber-500 focus:outline-none transition tabular-nums" type="number" min="0.1" step="0.1" bind:value={stepDeg} />
       </label>
-      <button
-        class={`rounded-2xl px-6 py-3.5 text-xs font-black uppercase tracking-widest shadow-sm transition active:scale-95 ${
-          $hardwareStatus?.tripod.drivers_enabled ? "bg-green-500 text-white shadow-green-100" : "bg-stone-200 text-stone-600"
-        }`}
-        on:click={toggleDrivers}
-      >
-        Motors: {$hardwareStatus?.tripod.drivers_enabled ? "ON" : "OFF"}
-      </button>
     </div>
 
     <div class="mt-8 grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
@@ -311,9 +303,19 @@
       <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Pan Left" disabled={busy || tripodFault} on:click={() => nudge(-stepDeg, 0)}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
       </button>
-      <button class="aspect-square rounded-2xl bg-red-600 p-4 font-black text-white hover:bg-red-500 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-red-600 shadow-md shadow-red-100" title="Emergency Stop" disabled={busy || tripodFault} on:click={stop}>
-        <div class="h-6 w-6 mx-auto bg-white rounded-sm"></div>
-      </button>
+      <div class="grid gap-2">
+        <button
+            class={`rounded-xl py-2 text-[8px] font-black uppercase tracking-widest shadow-sm transition active:scale-95 ${
+            $hardwareStatus?.tripod.drivers_enabled ? "bg-green-500 text-white" : "bg-stone-200 text-stone-600"
+            }`}
+            on:click={toggleDrivers}
+        >
+            {$hardwareStatus?.tripod.drivers_enabled ? "Motors On" : "Motors Off"}
+        </button>
+        <button class="rounded-xl bg-red-600 p-4 font-black text-white hover:bg-red-500 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-red-600 shadow-md shadow-red-100" title="Emergency Stop" disabled={busy || tripodFault} on:click={stop}>
+            <div class="h-4 w-4 mx-auto bg-white rounded-sm"></div>
+        </button>
+      </div>
       <button class="aspect-square rounded-2xl bg-stone-900 p-4 font-black text-white hover:bg-stone-800 active:scale-90 transition disabled:opacity-30 disabled:hover:bg-stone-900" title="Pan Right" disabled={busy || tripodFault} on:click={() => nudge(stepDeg, 0)}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
       </button>

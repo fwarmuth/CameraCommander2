@@ -138,6 +138,7 @@ class SerialTripodAdapter:
         return await self.move_to(
             self._pan_deg + delta_pan_deg,
             self._tilt_deg + delta_tilt_deg,
+            expected_duration_s=10.0,
         )
 
     async def home(self) -> None:

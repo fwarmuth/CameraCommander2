@@ -39,7 +39,7 @@ class CameraConfig(BaseModel):
 class SerialConfig(BaseModel):
     port: str
     baudrate: int = 9600
-    timeout: float = 1.0
+    timeout: float = 30.0
     write_timeout: float = 1.0
     reconnect_interval: float = 2.0
     max_retries: int = 5
