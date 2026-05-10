@@ -2,7 +2,7 @@
 
 Validates the formatter / parser pair in
 ``cameracommander.hardware.tripod.protocol`` against
-``specs/001-core-system/contracts/firmware-protocol.md`` v1.0.x.
+``specs/004-movement-feedback/contracts/firmware-protocol.md`` v1.1.x.
 """
 
 from __future__ import annotations
@@ -13,7 +13,9 @@ from cameracommander.hardware.tripod.protocol import (
     LINE_TERMINATOR,
     DoneReply,
     ErrorReply,
+    EstimateReply,
     OkReply,
+    ProgressReply,
     ProtocolParseError,
     StatusReply,
     VersionReply,
@@ -95,6 +97,19 @@ def test_parse_status_reply_drivers_disabled() -> None:
     assert reply.drivers_enabled is False
 
 
+def test_parse_progress_reply() -> None:
+    reply = parse_reply("PROGRESS 12.345 -2.000\n")
+    assert isinstance(reply, ProgressReply)
+    assert reply.pan_deg == pytest.approx(12.345)
+    assert reply.tilt_deg == pytest.approx(-2.0)
+
+
+def test_parse_estimate_reply() -> None:
+    reply = parse_reply("ESTIMATE 15.4\n")
+    assert isinstance(reply, EstimateReply)
+    assert reply.seconds == pytest.approx(15.4)
+
+
 def test_parse_done_reply() -> None:
     assert isinstance(parse_reply("DONE\n"), DoneReply)
 
@@ -122,6 +137,8 @@ def test_parse_ok_replies(line: str, expected_detail: str) -> None:
         ("ERR Syntax\n", "Syntax"),
         ("ERR Unknown\n", "Unknown"),
         ("ERR DRIVERS_DISABLED\n", "DRIVERS_DISABLED"),
+        ("ERR AlreadyAtTarget\n", "AlreadyAtTarget"),
+        ("ERR MotorStall\n", "MotorStall"),
     ],
 )
 def test_parse_error_replies(line: str, expected_code: str) -> None:

@@ -25,7 +25,9 @@ from .base import MoveResult, StatusReport
 from .protocol import (
     DoneReply,
     ErrorReply,
+    EstimateReply,
     OkReply,
+    ProgressReply,
     StatusReply,
     VersionReply,
     cmd_drivers,
@@ -110,12 +112,14 @@ class SerialTripodAdapter:
         tilt_deg: float,
         *,
         expected_duration_s: float | None = None,
+        progress_callback: Any | None = None,
     ) -> MoveResult:
         started = time.monotonic()
         reply = await self._send(
             cmd_move(pan_deg, tilt_deg),
             expected=DoneReply,
             timeout_override=expected_duration_s,
+            progress_callback=progress_callback,
         )
         if not isinstance(reply, DoneReply):  # pragma: no cover - type guard
             raise MotorStallError("move did not complete")
@@ -129,10 +133,12 @@ class SerialTripodAdapter:
         *,
         delta_pan_deg: float = 0.0,
         delta_tilt_deg: float = 0.0,
+        progress_callback: Any | None = None,
     ) -> MoveResult:
         return await self.move_to(
             self._pan_deg + delta_pan_deg,
             self._tilt_deg + delta_tilt_deg,
+            progress_callback=progress_callback,
         )
 
     async def home(self) -> None:
@@ -176,6 +182,7 @@ class SerialTripodAdapter:
         *,
         expected: type,
         timeout_override: float | None = None,
+        progress_callback: Any | None = None,
     ):
         async with self._lock:
             return await asyncio.to_thread(
@@ -183,9 +190,16 @@ class SerialTripodAdapter:
                 command,
                 expected,
                 timeout_override,
+                progress_callback,
             )
 
-    def _send_blocking(self, command: str, expected: type, timeout_override: float | None):
+    def _send_blocking(
+        self,
+        command: str,
+        expected: type,
+        timeout_override: float | None,
+        progress_callback: Any | None = None,
+    ):
         ser = self._serial
         if ser is None or not ser.is_open:
             raise SerialLostError("serial port is not open")
@@ -195,7 +209,8 @@ class SerialTripodAdapter:
         try:
             ser.write(command.encode("ascii"))
             ser.flush()
-            deadline = time.monotonic() + float(ser.timeout or 1.0) + 0.5
+            timeout_val = float(ser.timeout or 1.0)
+            deadline = time.monotonic() + timeout_val + 0.5
             while time.monotonic() < deadline:
                 raw = ser.readline()
                 if not raw:
@@ -208,6 +223,21 @@ class SerialTripodAdapter:
                     continue
                 if isinstance(reply, ErrorReply):
                     raise TripodError(f"firmware error: {reply.code}", firmware_error=reply.code)
+
+                if isinstance(reply, (ProgressReply, EstimateReply)):
+                    if isinstance(reply, ProgressReply):
+                        self._pan_deg = reply.pan_deg
+                        self._tilt_deg = reply.tilt_deg
+                        # Refresh deadline on progress.
+                        deadline = time.monotonic() + timeout_val + 0.5
+                    if progress_callback:
+                        progress_callback(reply)
+                    continue
+
+                if isinstance(reply, OkReply) and reply.detail == "STOP":
+                    # Emergency stop received during command.
+                    raise TripodError("motion aborted by emergency stop")
+
                 if isinstance(reply, expected):
                     return reply
                 raise TripodError(f"unexpected reply to {command.strip()}: {line}")

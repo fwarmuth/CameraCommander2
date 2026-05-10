@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
 
 from cameracommander.core.errors import MotionLimitError, TripodError
+from cameracommander.hardware.tripod.protocol import EstimateReply, ProgressReply
 from cameracommander.services.safety import SafetyService
 
 from .common import load_config, make_tripod
@@ -27,6 +29,27 @@ async def _run_repl(config_path: Path, *, mock: bool) -> None:
     tripod = make_tripod(config, mock=mock)
     safety = SafetyService.from_config(config)
     await tripod.open()
+
+    estimate: float | None = None
+    move_started: float | None = None
+
+    def _on_progress(reply: Any) -> None:
+        nonlocal estimate, move_started
+        if isinstance(reply, EstimateReply):
+            estimate = reply.seconds
+            move_started = time.monotonic()
+            typer.secho(f"Move started (est. {estimate:.1f}s)...", fg=typer.colors.BLUE)
+        elif isinstance(reply, ProgressReply):
+            rem = ""
+            if estimate is not None and move_started is not None:
+                elapsed = time.monotonic() - move_started
+                remaining = max(0.0, estimate - elapsed)
+                rem = f" ({remaining:.1f}s remaining)"
+            typer.echo(
+                f"\rpan={reply.pan_deg:.3f}, tilt={reply.tilt_deg:.3f}{rem}    ",
+                nl=False,
+            )
+
     try:
         typer.secho("Manual tripod control. Use q to quit.", fg=typer.colors.CYAN)
         while True:
@@ -60,7 +83,10 @@ async def _run_repl(config_path: Path, *, mock: bool) -> None:
                 pan = float(parts[1])
                 tilt = float(parts[2])
                 safety.guard_move(pan, tilt)
-                await tripod.move_to(pan, tilt)
+                estimate = None
+                move_started = None
+                await tripod.move_to(pan, tilt, progress_callback=_on_progress)
+                typer.echo()  # Newline after progress
                 await _print_status(tripod)
                 continue
             if len(parts) == 2:
@@ -71,7 +97,14 @@ async def _run_repl(config_path: Path, *, mock: bool) -> None:
                     status.position_pan_deg + delta_pan,
                     status.position_tilt_deg + delta_tilt,
                 )
-                await tripod.nudge(delta_pan_deg=delta_pan, delta_tilt_deg=delta_tilt)
+                estimate = None
+                move_started = None
+                await tripod.nudge(
+                    delta_pan_deg=delta_pan,
+                    delta_tilt_deg=delta_tilt,
+                    progress_callback=_on_progress,
+                )
+                typer.echo()  # Newline after progress
                 await _print_status(tripod)
                 continue
             typer.secho("unknown command", fg=typer.colors.YELLOW, err=True)
@@ -95,7 +128,10 @@ def command(
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
     except TripodError as exc:
-        typer.secho(exc.message, fg=typer.colors.RED, err=True)
+        if exc.firmware_error == "AlreadyAtTarget":
+            typer.secho("Tripod is already at the target position. No move needed.", fg=typer.colors.YELLOW)
+        else:
+            typer.secho(exc.message, fg=typer.colors.RED, err=True)
         raise typer.Exit(12) from exc
     except KeyboardInterrupt as exc:
         raise typer.Exit(15) from exc

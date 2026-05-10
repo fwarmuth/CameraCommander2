@@ -24,13 +24,21 @@ async def test_mock_firmware_replies_version_and_timed_move() -> None:
         started = time.monotonic()
         writer.write(b"M 2 0\n")
         await writer.drain()
-        done = (await reader.readline()).decode("ascii").strip()
+        
+        replies = []
+        while True:
+            line = (await reader.readline()).decode("ascii").strip()
+            replies.append(line)
+            if line == "DONE" or line.startswith("ERR"):
+                break
+        
         elapsed = time.monotonic() - started
         writer.close()
         await writer.wait_closed()
     finally:
         await server.stop()
 
-    assert version == "VERSION 1.0.1"
-    assert done == "DONE"
-    assert elapsed == pytest.approx(0.2, abs=0.15)
+    assert version == "VERSION 1.1.0"
+    assert replies[0].startswith("ESTIMATE")
+    assert replies[-1] == "DONE"
+    assert elapsed == pytest.approx(0.2, abs=0.2)

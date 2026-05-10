@@ -1,6 +1,6 @@
 """In-process TCP server that speaks the firmware serial protocol.
 
-Byte-for-byte parity with ``contracts/firmware-protocol.md`` v1.0.x. The host's
+Byte-for-byte parity with ``contracts/firmware-protocol.md`` v1.1.x. The host's
 real serial adapter reaches the mock via ``port: socket://127.0.0.1:9999`` so
 both the mock and the production code paths exercise the same parsing and
 timing budget logic.
@@ -15,7 +15,7 @@ from ..core.logging import logger
 from ..hardware.tripod.protocol import _MICROSTEP_FROM_TOKEN, LINE_TERMINATOR
 from .motion_model import MotionModel
 
-DEFAULT_FW_VERSION = "1.0.1"
+DEFAULT_FW_VERSION = "1.1.0"
 
 
 @dataclass(slots=True)
@@ -36,6 +36,7 @@ class MockFirmwareConfig:
 class _ConnectionState:
     motion: MotionModel
     microstep: int
+    move_task: asyncio.Task | None = None
 
 
 class MockFirmwareServer:
@@ -103,20 +104,24 @@ class MockFirmwareServer:
                 line = raw.decode("ascii", errors="replace").rstrip("\r\n").strip()
                 if not line:
                     continue
-                replies = await self._dispatch(line, state)
-                for reply in replies:
-                    writer.write((reply + LINE_TERMINATOR).encode("ascii"))
-                await writer.drain()
+                await self._dispatch(line, state, writer)
         except (asyncio.IncompleteReadError, ConnectionResetError):
             pass
         finally:
+            if state.move_task:
+                state.move_task.cancel()
             writer.close()
             await writer.wait_closed()
             logger.debug("mock firmware: client {} disconnected", peer)
 
     # --- protocol dispatch --------------------------------------------
 
-    async def _dispatch(self, line: str, state: _ConnectionState) -> list[str]:
+    def _write_reply(self, writer: asyncio.StreamWriter, reply: str) -> None:
+        writer.write((reply + LINE_TERMINATOR).encode("ascii"))
+
+    async def _dispatch(
+        self, line: str, state: _ConnectionState, writer: asyncio.StreamWriter
+    ) -> None:
         # Single-letter tokens are case-insensitive per protocol §4 except where
         # the token's case carries direction sign for the helper commands; we
         # match the case-sensitive helpers explicitly.
@@ -126,73 +131,149 @@ class MockFirmwareServer:
 
         # `V` — version ----------------------------------------------------
         if upper_first == "V" and not rest:
-            return [f"VERSION {self.config.fw_version}"]
+            self._write_reply(writer, f"VERSION {self.config.fw_version}")
+            await writer.drain()
+            return
 
         # `S` — status -----------------------------------------------------
         if upper_first == "S" and not rest:
             drv = "1" if state.motion.drivers_enabled else "0"
-            return [
-                f"STATUS {state.motion.pan_deg:.3f} {state.motion.tilt_deg:.3f} {drv}"
-            ]
+            self._write_reply(
+                writer, f"STATUS {state.motion.pan_deg:.3f} {state.motion.tilt_deg:.3f} {drv}"
+            )
+            await writer.drain()
+            return
 
         # `M <pan> <tilt>` — absolute move --------------------------------
         if upper_first == "M":
             try:
                 parts = rest.split()
                 if len(parts) != 2:
-                    return ["ERR Syntax"]
+                    self._write_reply(writer, "ERR Syntax")
+                    await writer.drain()
+                    return
                 pan = float(parts[0])
                 tilt = float(parts[1])
             except ValueError:
-                return ["ERR Syntax"]
+                self._write_reply(writer, "ERR Syntax")
+                await writer.drain()
+                return
             if not state.motion.drivers_enabled:
-                return ["ERR DRIVERS_DISABLED"]
+                self._write_reply(writer, "ERR DRIVERS_DISABLED")
+                await writer.drain()
+                return
+
+            if (
+                abs(state.motion.pan_deg - pan) < 0.001
+                and abs(state.motion.tilt_deg - tilt) < 0.001
+            ):
+                self._write_reply(writer, "ERR AlreadyAtTarget")
+                await writer.drain()
+                return
+
+            if state.move_task:
+                state.move_task.cancel()
+
             wait_s = state.motion.expected_move_duration_s(pan, tilt)
-            await asyncio.sleep(wait_s)
-            state.motion.apply_move(pan, tilt)
-            return ["DONE"]
+            self._write_reply(writer, f"ESTIMATE {wait_s:.2f}")
+            await writer.drain()
+
+            state.move_task = asyncio.create_task(self._run_move(pan, tilt, wait_s, state, writer))
+            return
 
         # `X` — global stop -----------------------------------------------
         if first == "X" and not rest:
-            return ["OK STOP"]
+            if state.move_task:
+                state.move_task.cancel()
+                state.move_task = None
+            self._write_reply(writer, "OK STOP")
+            await writer.drain()
+            return
 
         # `+` / `-` — speed adjust ----------------------------------------
         if first in {"+", "-"} and not rest:
-            return ["OK SPEED"]
+            self._write_reply(writer, "OK SPEED")
+            await writer.drain()
+            return
 
         # `d` / `e` — driver toggle ---------------------------------------
         if first in {"d", "e"} and not rest:
             state.motion.drivers_enabled = first == "e"
             state.motion.reset_position()  # FR-011
-            return ["OK DRIVERS ON" if state.motion.drivers_enabled else "OK DRIVERS OFF"]
+            self._write_reply(
+                writer, "OK DRIVERS ON" if state.motion.drivers_enabled else "OK DRIVERS OFF"
+            )
+            await writer.drain()
+            return
 
         # microstep selection: tokens 1, 2, 4, 8, 6 -----------------------
         if first in _MICROSTEP_FROM_TOKEN and not rest:
             res = _MICROSTEP_FROM_TOKEN[first]
             state.microstep = res
-            return [f"OK MICROSTEP {res}"]
+            self._write_reply(writer, f"OK MICROSTEP {res}")
+            await writer.drain()
+            return
 
         # pan-axis helpers ------------------------------------------------
         if line in {"n", "N"}:
-            return ["OK ROT STEP"]
-        if line in {"c", "C"}:
-            return ["OK ROT REV"]
-        if line in {"r", "R"}:
-            return ["OK ROT DIR"]
-        if line == "x":
-            return ["OK ROT STOP"]
-
+            self._write_reply(writer, "OK ROT STEP")
+        elif line in {"c", "C"}:
+            self._write_reply(writer, "OK ROT REV")
+        elif line in {"r", "R"}:
+            self._write_reply(writer, "OK ROT DIR")
+        elif line == "x":
+            self._write_reply(writer, "OK ROT STOP")
         # tilt-axis helpers -----------------------------------------------
-        if line in {"w", "W"}:
-            return ["OK TILT STEP"]
-        if line in {"p", "P"}:
-            return ["OK TILT REV"]
-        if line in {"t", "T"}:
-            return ["OK TILT DIR"]
-        if line == "z":
-            return ["OK TILT STOP"]
+        elif line in {"w", "W"}:
+            self._write_reply(writer, "OK TILT STEP")
+        elif line in {"p", "P"}:
+            self._write_reply(writer, "OK TILT REV")
+        elif line in {"t", "T"}:
+            self._write_reply(writer, "OK TILT DIR")
+        elif line == "z":
+            self._write_reply(writer, "OK TILT STOP")
+        else:
+            self._write_reply(writer, "ERR Unknown")
 
-        return ["ERR Unknown"]
+        await writer.drain()
+
+    async def _run_move(
+        self,
+        pan: float,
+        tilt: float,
+        duration: float,
+        state: _ConnectionState,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        start_pan = state.motion.pan_deg
+        start_tilt = state.motion.tilt_deg
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + duration
+
+        try:
+            # Emit progress every 200ms
+            while (now := asyncio.get_event_loop().time()) < end_time:
+                await asyncio.sleep(0.2)
+                # Check again if we were cancelled during sleep
+                elapsed = asyncio.get_event_loop().time() - start_time
+                if elapsed >= duration:
+                    break
+                frac = elapsed / duration
+                state.motion.pan_deg = start_pan + (pan - start_pan) * frac
+                state.motion.tilt_deg = start_tilt + (tilt - start_tilt) * frac
+                self._write_reply(
+                    writer, f"PROGRESS {state.motion.pan_deg:.3f} {state.motion.tilt_deg:.3f}"
+                )
+                await writer.drain()
+
+            await asyncio.sleep(state.motion.settle_delay_s)
+            state.motion.apply_move(pan, tilt)
+            self._write_reply(writer, "DONE")
+            await writer.drain()
+        except asyncio.CancelledError:
+            pass
+        finally:
+            state.move_task = None
 
 
 async def run_server(

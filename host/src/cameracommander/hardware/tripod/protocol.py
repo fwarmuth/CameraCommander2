@@ -1,6 +1,6 @@
 """Firmware serial-protocol formatter and reply parser.
 
-Authoritative for ``contracts/firmware-protocol.md`` v1.0.x. Both the host
+Authoritative for ``contracts/firmware-protocol.md`` v1.1.x. Both the host
 adapter and the in-process mock firmware import the formatter / parser from
 this module so any divergence is caught at one place.
 """
@@ -122,6 +122,21 @@ class StatusReply:
 
 
 @dataclass(frozen=True, slots=True)
+class ProgressReply:
+    """Intermediate position report during motion."""
+
+    pan_deg: float
+    tilt_deg: float
+
+
+@dataclass(frozen=True, slots=True)
+class EstimateReply:
+    """Firmware's expected duration for the move."""
+
+    seconds: float
+
+
+@dataclass(frozen=True, slots=True)
 class DoneReply:
     """Reply to a successful ``M`` move."""
 
@@ -133,10 +148,10 @@ class OkReply:
 
 @dataclass(frozen=True, slots=True)
 class ErrorReply:
-    code: Literal["Syntax", "Unknown", "DRIVERS_DISABLED"] | str
+    code: Literal["Syntax", "Unknown", "DRIVERS_DISABLED", "AlreadyAtTarget", "MotorStall"] | str
 
 
-Reply = VersionReply | StatusReply | DoneReply | OkReply | ErrorReply
+Reply = VersionReply | StatusReply | ProgressReply | EstimateReply | DoneReply | OkReply | ErrorReply
 
 
 # --- Parser ---------------------------------------------------------------
@@ -144,6 +159,8 @@ Reply = VersionReply | StatusReply | DoneReply | OkReply | ErrorReply
 
 _VERSION_RE = re.compile(r"^VERSION\s+(\d+)\.(\d+)\.(\d+)\s*$")
 _STATUS_RE = re.compile(r"^STATUS\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+([01])\s*$")
+_PROGRESS_RE = re.compile(r"^PROGRESS\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*$")
+_ESTIMATE_RE = re.compile(r"^ESTIMATE\s+(\d+(?:\.\d+)?)\s*$")
 
 
 class ProtocolParseError(ValueError):
@@ -171,6 +188,12 @@ def parse_reply(line: str) -> Reply:
             drivers_enabled=m.group(3) == "1",
         )
 
+    if (m := _PROGRESS_RE.match(raw)) is not None:
+        return ProgressReply(pan_deg=float(m.group(1)), tilt_deg=float(m.group(2)))
+
+    if (m := _ESTIMATE_RE.match(raw)) is not None:
+        return EstimateReply(seconds=float(m.group(1)))
+
     if raw == "DONE":
         return DoneReply()
 
@@ -189,7 +212,9 @@ __all__ = [
     "LINE_TERMINATOR",
     "DoneReply",
     "ErrorReply",
+    "EstimateReply",
     "OkReply",
+    "ProgressReply",
     "ProtocolParseError",
     "Reply",
     "StatusReply",

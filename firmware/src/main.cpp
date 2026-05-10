@@ -33,6 +33,7 @@ constexpr float RATIO_TT_TO_VT = GEAR_RATIO_VT / GEAR_RATIO_TT;
 constexpr float ROT_SPEED0 = 150.0f;
 constexpr float ROT_ACCEL0 = 80.0f;
 constexpr unsigned long SETTLE_DELAY_MS = 250;
+constexpr unsigned long PROGRESS_INTERVAL_MS = 200;
 
 GearedStepper turntableStepper(
     TT_STEP_PIN, TT_DIR_PIN, TT_ENABLE_PIN,
@@ -54,6 +55,16 @@ Axis til{tiltStepper};
 float gRotSpeed = ROT_SPEED0;
 float gRotAccel = ROT_ACCEL0;
 bool gDriversEnabled = true;
+
+enum class MotionState {
+    Idle,
+    Moving,
+    Settling
+};
+
+MotionState gMotionState = MotionState::Idle;
+unsigned long gLastProgressMs = 0;
+unsigned long gSettleStartedMs = 0;
 
 void ack(const char* message) {
     Serial.println(message);
@@ -108,6 +119,24 @@ void set_drivers(bool enabled) {
     ack("OK DRIVERS OFF");
 }
 
+float estimate_move_duration(float pan_deg, float tilt_deg) {
+    const float current_pan = microsteps_to_deg(turntableStepper, turntableStepper.currentPosition());
+    const float current_tilt = microsteps_to_deg(tiltStepper, tiltStepper.currentPosition());
+    
+    const float delta_pan = abs(pan_deg - current_pan);
+    const float delta_tilt = abs(tilt_deg - current_tilt);
+    
+    // Very simplified estimate: distance / maxSpeed
+    // AccelStepper speed is steps/s.
+    const float pan_steps_per_deg = static_cast<float>(turntableStepper.getOutputStepsPerRotation() * turntableStepper.getMicrostepResolution()) / 360.0f;
+    const float tilt_steps_per_deg = static_cast<float>(tiltStepper.getOutputStepsPerRotation() * tiltStepper.getMicrostepResolution()) / 360.0f;
+    
+    const float pan_time = (delta_pan * pan_steps_per_deg) / turntableStepper.maxSpeed();
+    const float tilt_time = (delta_tilt * tilt_steps_per_deg) / tiltStepper.maxSpeed();
+    
+    return max(pan_time, tilt_time);
+}
+
 void move_absolute(float pan_deg, float tilt_deg) {
     if (!gDriversEnabled) {
         ack(cc_protocol::REPLY_ERR_DRIVERS_DISABLED);
@@ -118,15 +147,19 @@ void move_absolute(float pan_deg, float tilt_deg) {
     const long target_pan = deg_to_microsteps(turntableStepper, pan_deg);
     const long target_tilt = deg_to_microsteps(tiltStepper, safe_tilt);
 
+    if (turntableStepper.currentPosition() == target_pan && 
+        tiltStepper.currentPosition() == target_tilt) {
+        ack(cc_protocol::REPLY_ERR_ALREADY_AT_TARGET);
+        return;
+    }
+
+    const float duration = estimate_move_duration(pan_deg, safe_tilt);
+    ack(String(cc_protocol::REPLY_ESTIMATE) + " " + String(duration, 2));
+
     turntableStepper.moveTo(target_pan);
     tiltStepper.moveTo(target_tilt);
-    while (turntableStepper.distanceToGo() != 0 || tiltStepper.distanceToGo() != 0) {
-        turntableStepper.run();
-        tiltStepper.run();
-        yield();
-    }
-    delay(SETTLE_DELAY_MS);
-    ack(cc_protocol::REPLY_DONE);
+    gMotionState = MotionState::Moving;
+    gLastProgressMs = millis();
 }
 
 void report_status() {
@@ -135,6 +168,13 @@ void report_status() {
     const float tilt_deg = microsteps_to_deg(tiltStepper, tiltStepper.currentPosition());
     ack(String("STATUS ") + String(pan_deg, 3) + " " + String(tilt_deg, 3) + " " +
         (gDriversEnabled ? "1" : "0"));
+}
+
+void report_progress() {
+    const float pan_deg =
+        microsteps_to_deg(turntableStepper, turntableStepper.currentPosition());
+    const float tilt_deg = microsteps_to_deg(tiltStepper, tiltStepper.currentPosition());
+    ack(String(cc_protocol::REPLY_PROGRESS) + " " + String(pan_deg, 3) + " " + String(tilt_deg, 3));
 }
 
 void print_banner() {
@@ -217,6 +257,7 @@ void dispatch(const cc_protocol::ParsedCommand& command) {
         case CommandKind::GlobalStop:
             rot.stepper.stop();
             til.stepper.stop();
+            gMotionState = MotionState::Idle;
             ack("OK STOP");
             return;
         case CommandKind::SpeedUp:
@@ -240,6 +281,21 @@ void dispatch(const cc_protocol::ParsedCommand& command) {
 void loop() {
     turntableStepper.run();
     tiltStepper.run();
+
+    if (gMotionState == MotionState::Moving) {
+        if (turntableStepper.distanceToGo() == 0 && tiltStepper.distanceToGo() == 0) {
+            gMotionState = MotionState::Settling;
+            gSettleStartedMs = millis();
+        } else if (millis() - gLastProgressMs >= PROGRESS_INTERVAL_MS) {
+            report_progress();
+            gLastProgressMs = millis();
+        }
+    } else if (gMotionState == MotionState::Settling) {
+        if (millis() - gSettleStartedMs >= SETTLE_DELAY_MS) {
+            gMotionState = MotionState::Idle;
+            ack(cc_protocol::REPLY_DONE);
+        }
+    }
 
     if (!Serial.available()) {
         return;

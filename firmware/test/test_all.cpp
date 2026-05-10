@@ -1,6 +1,7 @@
 #include <unity.h>
 
 #include "../src/protocol.h"
+#include "../src/safety.h"
 
 using cc_protocol::CommandKind;
 using cc_protocol::parse_command;
@@ -8,6 +9,8 @@ using cc_protocol::parse_command;
 void assert_kind(CommandKind expected, CommandKind actual) {
     TEST_ASSERT_EQUAL_INT(static_cast<int>(expected), static_cast<int>(actual));
 }
+
+// --- Parser Tests ---
 
 void test_parse_move() {
     const auto command = parse_command("M 12.5 -3.0");
@@ -43,13 +46,37 @@ void test_global_stop_is_distinct_from_pan_stop() {
     assert_kind(CommandKind::PanStop, parse_command("x").kind);
 }
 
+// --- Safety Tests ---
+
+void test_tilt_limit_accepts_inside_window() {
+    TEST_ASSERT_TRUE(tilt_within_mechanical_limits(0.0f));
+    TEST_ASSERT_TRUE(tilt_within_mechanical_limits(CC_TILT_MIN_DEG));
+    TEST_ASSERT_TRUE(tilt_within_mechanical_limits(CC_TILT_MAX_DEG));
+}
+
+void test_tilt_limit_rejects_outside_window() {
+    TEST_ASSERT_FALSE(tilt_within_mechanical_limits(CC_TILT_MIN_DEG - 0.1f));
+    TEST_ASSERT_FALSE(tilt_within_mechanical_limits(CC_TILT_MAX_DEG + 0.1f));
+}
+
+void test_clamp_limits_tilt() {
+    TEST_ASSERT_EQUAL_FLOAT(CC_TILT_MIN_DEG, clamp_tilt_to_mechanical_limits(CC_TILT_MIN_DEG - 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(CC_TILT_MAX_DEG, clamp_tilt_to_mechanical_limits(CC_TILT_MAX_DEG + 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(12.0f, clamp_tilt_to_mechanical_limits(12.0f));
+}
+
 int main() {
     UNITY_BEGIN();
+    // Parser
     RUN_TEST(test_parse_move);
     RUN_TEST(test_parse_status);
     RUN_TEST(test_reject_move_wrong_arity);
     RUN_TEST(test_reject_unknown_token);
     RUN_TEST(test_case_insensitive_tokens);
     RUN_TEST(test_global_stop_is_distinct_from_pan_stop);
+    // Safety
+    RUN_TEST(test_tilt_limit_accepts_inside_window);
+    RUN_TEST(test_tilt_limit_rejects_outside_window);
+    RUN_TEST(test_clamp_limits_tilt);
     return UNITY_END();
 }

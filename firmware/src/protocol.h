@@ -5,14 +5,18 @@
 #include <cstdlib>
 #include <cstring>
 
-#define FW_VERSION "1.0.1"
+#define FW_VERSION "1.1.0"
 
 namespace cc_protocol {
 
 constexpr char REPLY_DONE[] = "DONE";
+constexpr char REPLY_ESTIMATE[] = "ESTIMATE";
+constexpr char REPLY_PROGRESS[] = "PROGRESS";
 constexpr char REPLY_ERR_SYNTAX[] = "ERR Syntax";
 constexpr char REPLY_ERR_UNKNOWN[] = "ERR Unknown";
 constexpr char REPLY_ERR_DRIVERS_DISABLED[] = "ERR DRIVERS_DISABLED";
+constexpr char REPLY_ERR_ALREADY_AT_TARGET[] = "ERR AlreadyAtTarget";
+constexpr char REPLY_ERR_MOTOR_STALL[] = "ERR MotorStall";
 
 enum class CommandKind {
     Empty,
